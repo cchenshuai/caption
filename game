@@ -1,0 +1,3914 @@
+
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+
+
+public class game {
+	long begintime;
+	String severIp;
+	String severPort;
+	String playIp;
+	String playPort;
+	String playId;
+	Socket s;
+	// name
+	String playName = "11";
+	BufferedWriter bufferedWriter;
+	BufferedReader bufferedReader;
+	Boolean seatFlag=false;
+	Boolean  inquireFlag=false;
+	Boolean  blindFlag=false;
+	Boolean  holdFlag=false;
+	Boolean  flopFlag=false;
+	Boolean  turnFlag=false;
+	Boolean riverFlag=false;
+	Boolean  showDownFlag=false;
+	Boolean  actionFlag=false;
+	Boolean  potwinFlag=false;;
+	PlayInfo handPlayInfo;
+	//yi ju jieshu  qing 0
+	int j=0;
+	int bigJetton;
+	//yijujieshuqing 0
+	public static HashMap<String, PlayInfo> hashViews = new HashMap<String, PlayInfo>();
+	public static HashMap<String, Card> CardsHashView = new HashMap<String, Card>();
+	int  cardHashI=1;
+	int  flopI=1;
+
+	//yi ju jieshu qing 0
+	
+	//o****gameover ver 0;
+	public int orderI = 3;
+	//left  hand 0.1.2.3.4.5.6.7.8
+	String[] playorder=new  String[8];
+	int orderJ=0;
+	int cardLength = 0;
+	InputStream in;
+	OutputStream outputStream = null;
+	
+	int[] handCardValues;
+	int[] handCardColors;
+	
+	int[] flopCardValues;
+	int[] flopCardColors;
+	
+	final int SM_HIGH_CARD=2;
+	final int BIG_HIGH_CARD=14;
+	final int SM_ONE_PAIR=15;
+	final int BIG_ONE_PAIR=27;
+	final int SM_TWO_PAIR=28;
+	final int BG_TWO_PAIR=40;
+	final   int SM_THREE=41;
+	final  int BG_THREE=53;
+	final   int SM_STRAIGHT=54; 
+	final  int BG_STRAIGHT= 63;
+	final  int SM_FLUSH=64;
+	final   int BG_FLUSH=70;
+	final   int SM_FULL_HOUSE=71;
+	final   int BG_FULL_HOUSE=83;
+	final   int  SM_FOUR=84;
+	final   int BG_FOUR=96;
+	final  int SM_STRAIGHT_FLUSH =97;
+	final  int BG_STRAIGHT_FLUSH=106;
+	//2 zhang  jie xian 
+	final double   TWO_SSH_1=9.9;
+	final double   TWO_SSH_2=6.7;
+	final double   TWO_SSH_3=4.0;
+	//5zhang jiexian
+	final double   FIVE_SSH_1=83.0;
+	final double   FIVE_SSH_2=60.0;
+	final double   FIVE_SSH_3=55.0;
+	final double   FIVE_SSH_4=43.0;
+	final  double  FIVE_SSH_5=30.0;
+	final  double  FIVE_SSH_6=20.0;
+	//6 ZHANG jiexian
+	final double  SIX_SSH_1=100.0;
+	final double  SIX_SSH_2=76.0;
+	final double  SIX_SSH_3=55.0;
+	final double  SIX_SSH_4=40.0;
+	final double  SIX_SSH_5=35.0;
+
+	//7zhang jiexian
+	final double  STRAIGH_FLUSH_SSH=96.5;
+	final double  FOUR_SSH=83.5;
+	final double  FULL_HOUSE_SSH=70.5;
+	final double  FLUSH_SSH=63.5;
+	final double  STRAIGH_SSH=51;
+	final double  THREE_SSH=30;
+	final double  TWO_PAIR_SSH=20;
+	final double  ONE_PAIR_SSH=10;
+	SocketAddress remoteAddr;
+	int countnum;
+	private boolean stopexe=false;
+    
+	public game() {
+		// TODO Auto-generated constructor stub
+	}
+
+	public game(String severIp, String severPort, String playIp,
+			String playPort, String playId) {
+		// TODO Auto-generated constructor stub
+		this.severIp = severIp;
+		this.severPort = severPort;
+		this.playIp = playIp;
+		this.playPort = playPort;
+		this.playId = playId;
+
+	}
+
+	public static void main(String args[]) {
+     
+		game mGame = new game(args[0], args[1], args[2], args[3], args[4]);
+		
+		int sPort = Integer.parseInt(mGame.severPort);
+		mGame.start(mGame.severIp, sPort);
+	/*	game mGame=new game();
+		mGame.receiveMsg();*/
+	}
+
+	private void start(String severIP, int serverPort) {
+		// TODO Auto-generated method stub
+		try {
+
+			s = new Socket();
+			s.setReuseAddress(true);
+			remoteAddr = new InetSocketAddress(severIP,
+					serverPort);
+			int playport = Integer.parseInt(playPort);
+
+			SocketAddress localAddr = new InetSocketAddress(playIp, playport);
+			s.bind(localAddr);
+			s.connect(remoteAddr);
+			while(!s.isConnected()){
+				try {
+					Thread.sleep(100);
+					s.connect(remoteAddr);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}			
+            //register
+			registerMsg(playId, playName);
+			//receive Msg
+			while (true) {
+				while(!s.isConnected()){
+					try {
+						Thread.sleep(100);
+						s.connect(remoteAddr);
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}		
+				receiveMsg();		
+                if (stopexe) {
+					break;
+				}
+			}
+		} catch (UnknownHostException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}	
+	private void receiveMsg() {
+		// TODO Auto-generated method stub		
+		
+			begintime=System.currentTimeMillis();
+			//System.out.println("begintime##"+begintime);
+			/*pot-win/ \n7777: 14000 \n5555: 1600 \n/pot-win \n"+"seat/ \nbutton: 4444 2000 8000 \nsmall blind: 8888 2000 8000 \nbig blind: 2222 2000 8000 \n3333 2000 8000 \n7777 2000 8000\n"+  
+			"5555 2000 8000\n6666 2000 8000\n1111 2000 8000\n/seat\n
+*/			
+			//String msg="blind/\n8888: 50\n2222: 100 \n/blind\nhold/\nHEARTS 9\nDIAMONDS A\n/hold\n";
+			String alldata="";			
+			//String alldata=msg;
+			try {
+				in = s.getInputStream();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			
+			
+			int i=0;  
+			 byte[] buffer = new byte[1024];    		  
+            try {  
+			    i = in.read(buffer);  
+			} catch (IOException e) {  
+			    e.printStackTrace();  
+			    i = -1;  
+			}  		  
+			for (int j = 0; j < i; j ++) {  
+			    alldata=alldata+((char)buffer[j]);  		            		            
+			}  
+			   buffer= new byte[1024];
+				//System.out.print("alldata\n"+alldata);
+				if (alldata.contains("seat")) {
+				    int isStartFmSeat=alldata.indexOf("seat/");
+				    if (isStartFmSeat==0) {
+				    	dataFromseat(alldata);
+					}else {
+						String preData=alldata.substring(0,alldata.indexOf("seat/"));
+						String beginseatMsg = alldata.substring(alldata.indexOf("seat/"),alldata.indexOf("/seat")+5);
+						dataFromseat(preData);
+						dataFromseat(beginseatMsg);
+						
+					}				    
+				}else {
+					//blind+ hold+inquire 
+					dataFromseat(alldata);
+				}
+		    	
+		}
+		
+		
+		
+	
+
+	
+
+	private void dataFromseat(String alldata) {
+		// TODO Auto-generated method stub
+		String[] receivedata = new String[9];
+		String seatMsg = null;
+		String  blindMsg = null;
+		String  flopMsg = null;
+		String  turnMsg = null;
+		String  riverMsg = null;
+		String gameoverMsg = null;
+		String inquireMsg = null;
+		 boolean gameover=false;
+		 if (alldata.contains("seat/")) {
+			 if (alldata.indexOf("/seat")>0&&alldata.indexOf("seat/")>=0) {
+				 seatMsg = alldata.substring(alldata.indexOf("seat/"),alldata.indexOf("/seat")+5);		
+					System.out.print("seat/ \n"+seatMsg);
+			}
+			
+			}
+		if (alldata.contains("blind/")) {
+			if (alldata.indexOf("/blind")>0&&alldata.indexOf("blind/")>=0) {
+				 blindMsg = alldata.substring(alldata.indexOf("blind/"),alldata.indexOf("/blind")+6);		
+					System.out.print("blind/ \n"+blindMsg);
+			}
+			
+			}
+		if (alldata.contains("inquire")) {
+			if (alldata.indexOf("/inquire")>0&&alldata.indexOf("inquire/")>=0) {
+				 inquireMsg = alldata.substring(alldata.indexOf("inquire/"),alldata.indexOf("/inquire")+8);
+					System.out.print("inquire/ \n"+inquireMsg);
+			}
+			
+			}
+		String holdMsg = null;
+		if (alldata.contains("hold")) {
+			if (alldata.indexOf("/hold")>0&&alldata.indexOf("hold/")>=0) {
+				 holdMsg = alldata.substring(alldata.indexOf("hold/"),alldata.indexOf("/hold")+5);
+					System.out.print("hold/ \n"+holdMsg);
+			}
+			
+				}
+		if (alldata.contains("flop")) {
+			if (alldata.indexOf("/flop")>0&&alldata.indexOf("flop/")>=0) {
+				flopMsg = alldata.substring(alldata.indexOf("flop/"),alldata.indexOf("/flop")+5);
+				System.out.print("flop/ \n"+flopMsg);
+			}
+			 
+				}
+		if (alldata.contains("turn")) {
+			if (alldata.indexOf("/turn")>0&&alldata.indexOf("turn/")>=0) {
+				turnMsg = alldata.substring(alldata.indexOf("turn/"),alldata.indexOf("/turn")+5);
+				System.out.print("turn/ \n"+turnMsg);
+			}
+			 
+				}
+		if (alldata.contains("river")) {
+			if (alldata.indexOf("/river")>0&&alldata.indexOf("river/")>=0) {
+				riverMsg = alldata.substring(alldata.indexOf("river/"),alldata.indexOf("/river")+6);
+				System.out.print("river/ \n"+riverMsg);
+			}
+			 
+				}
+		String showdownMsg = null;
+		if (alldata.contains("showdown")) {
+			if (alldata.indexOf("/showdown")>0&&alldata.indexOf("showdown/")>=0) {
+				 showdownMsg = alldata.substring(alldata.indexOf("showdown/"),alldata.indexOf("/showdown")+9);
+					System.out.print("showdown/ \n"+showdownMsg);
+			}
+			
+				}
+		
+		String potwinMsg = null;
+		if (alldata.contains("pot-win")) {
+			if (alldata.indexOf("pot-win/")>=0&&alldata.indexOf("/pot-win")>0) {
+				potwinMsg = alldata.substring(alldata.indexOf("pot-win/"),alldata.indexOf("/pot-win")+8);
+				System.out.print("pot-win/ \n"+potwinMsg);
+			}
+			 
+				}
+		/*if (alldata.contains("notify")) {
+			if (alldata.indexOf("notify/")>0&&alldata.indexOf("/notify")>0) {
+				
+			}
+			notifyMsg=alldata.substring(alldata.indexOf("notify/"),alldata.indexOf("/notify")+7);
+			System.out.print("notify/ \n"+notifyMsg);
+		}*/
+		if (alldata.contains("game-over")) {
+			  gameoverMsg = alldata.substring(alldata.indexOf("game-over"));
+			System.out.print("gameoverMsg"+gameoverMsg);
+				}
+	
+			
+		if (seatMsg!=null) {
+			receivedata[0]=seatMsg;
+		}
+		if (blindMsg!=null) {
+			receivedata[1]=blindMsg;
+		}
+		if (inquireMsg!=null) {
+			receivedata[2]=inquireMsg;
+		}
+		if (holdMsg!=null) {
+			receivedata[3]=holdMsg;
+		}
+		if (flopMsg!=null) {
+			receivedata[4]=flopMsg;
+		}
+		if (turnMsg!=null) {
+			receivedata[5]=turnMsg;
+		}
+		if (riverMsg!=null) {
+			receivedata[6]=riverMsg;
+		}
+		if (showdownMsg!=null) {
+			receivedata[7]=showdownMsg;
+		}
+		if (potwinMsg!=null) {
+			receivedata[8]=potwinMsg;
+		}
+		if (gameoverMsg!=null) {
+			 gameover=true;
+		}
+		for (int j = 0; j < receivedata.length; j++) {
+			if(receivedata[j]!=null){
+				String[] array=	receivedata[j].split("\n");
+				//System.out.println("array[0]"+array[0]);
+				//System.out.println("array[1]"+array[1]);
+				//System.out.println("array[2]"+array[2]);
+
+               String data=array[0];
+              // //System.out.println("data"+data);
+               int arrayLength=array.length;
+               int arrayI=0;
+              while(arrayI<arrayLength){
+                 data=array[arrayI];
+               		  arrayI++;
+					//seat=1,inquire=2,....
+					if (data.equals("/seat")) {   //add space
+						//System.out.println("seatovern");
+						seatFlag=false;
+						CardsHashView.clear();
+						continue;
+					}			
+					if (data.equals("seat/ ")||seatFlag) {
+						//System.out.println("identify:\n");						
+						handSeatMsg(data);
+						seatFlag=true;
+						continue;		
+					} 
+					//blind
+					if (data.equals("/blind")) {   //add space
+						blindFlag=false;
+						continue;
+					}			
+					if (data.equals("blind/ ")||blindFlag) {
+						//System.out.println("blindstart");					
+						handBlindMsg(data);
+						blindFlag=true;
+						continue;		
+					} 
+					
+					if (data.equals("/hold")) {   //add space
+						//System.out.println("holdover");	
+					    cardHashI=1;
+						holdFlag=false;
+						
+						continue;
+					}			
+					if (data.equals("hold/ ")||holdFlag) {
+						//System.out.println("holdstart");						
+						handHoldMsg(data);
+						holdFlag=true;
+						continue;		
+					} 
+					if (data.equals("/inquire")) {   //add space
+						//System.out.println("inquireover");
+					   
+						inquireFlag=false;
+						//next message is action-msg
+						actionFlag=true;
+						//action=true send  no continue
+						if (actionFlag) {
+							senActionMsg();
+							actionFlag=false;
+							 playorder = null;
+							 playorder =new String[8];
+							 orderJ = 0;
+						}else {
+							continue;
+						}
+						 playorder = null;
+						 playorder =new String[8];
+						 orderJ = 0;
+					}			
+					if (data.equals("inquire/ ")||inquireFlag) {
+						//System.out.println("inquirestart");						
+						handInquireMsg(data);
+						inquireFlag=true;
+						continue;		
+					} 
+					
+					
+					if (data.equals("/flop")) {   //add space
+						//System.out.println("flopover");		
+						flopI=1;
+						flopFlag=false;
+						
+						continue;
+					}			
+					if (data.equals("flop/ ")||flopFlag) {
+						//System.out.println("flopstart");						
+						handFlopMsg(data);
+						flopFlag=true;
+						continue;		
+					} 
+					
+					if (data.equals("/turn")) {   //add space
+						//System.out.println("turnover");		
+						turnFlag=false;
+						
+						continue;
+					}			
+					if (data.equals("turn/ ")||turnFlag) {
+						//System.out.println("turnstart");						
+						handTurnMsg(data);
+						turnFlag=true;
+						continue;		
+					} 
+					
+					if (data.equals("/river")) {   //add space
+						//System.out.println("riverover");		
+						riverFlag=false;
+						
+						continue;
+					}			
+					if (data.equals("river/ ")||riverFlag) {
+						//System.out.println("rivertart");						
+						handRiverMsg(data);
+						riverFlag=true;
+						continue;		
+					} 
+					
+					if (data.equals("/pot-win")) {   //add space
+						//System.out.println("pot-winover");	
+						countnum++;
+						//System.out.println("countnum"+countnum);
+						potwinFlag=false;
+						
+						continue;
+					}			
+					if (data.equals("pot-win/ ")||potwinFlag) {
+						//System.out.println("pot-wintart");						
+						handPotwinMsg(data);
+						potwinFlag=true;
+						continue;		
+					} 
+						
+			}
+			
+		}
+
+			
+     }
+		if (gameover) {
+			   //add space
+			//System.out.println("gameover");		
+			try {
+				in.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				outputStream.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			try {
+				s.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			stopexe=true;
+		
+			
+		}
+   
+	}
+	
+
+	private void handPotwinMsg(String s) {
+			// TODO Auto-generated method stub
+		
+	    	if (potwinFlag) {
+				
+				
+				//System.out.println("POT_WIN"+s);
+				
+				//chushi qing0
+				j=0;
+			    hashViews.clear();
+			    CardsHashView.clear();
+				orderI = 3;
+				playorder=new  String[8];
+				orderJ=0;
+				cardLength=0;
+			}
+		}
+	 private void handRiverMsg(String s) {
+
+			
+			// TODO Auto-generated method stub
+		if (riverFlag) {
+			String[] holdString = s.split(" ");
+			Card card = new Card();
+			card.setCardType(holdString[0]);
+			card.setCardSize(holdString[1]);
+			String  cardString="river";
+
+			CardsHashView.put(cardString, card);
+			// next j=1 nextnext j=2
+
+		}
+		
+		}
+
+		private void handTurnMsg(String s) {
+			
+			// TODO Auto-generated method stub
+	    	if (turnFlag) {
+				String[] holdString=s.split(" ");
+				Card card=new Card();
+				card.setCardType(holdString[0]);
+				card.setCardSize(holdString[1]);
+				String  cardString="turn";
+
+				CardsHashView.put(cardString, card);
+				//next j=1   nextnext j=2
+				
+			}
+		
+			
+		}
+
+		private void handFlopMsg(String s) {
+			// TODO Auto-generated method stub
+	    	if (flopFlag) {
+				String[] holdString=s.split(" ");
+				Card card=new Card();
+				card.setCardType(holdString[0]);
+				card.setCardSize(holdString[1]);
+				String  cardString="flop"+flopI;
+				CardsHashView.put(cardString, card);
+   				//next j=1   nextnext j=2\
+				flopI++;
+				
+				
+			}
+		}
+		private void handInquireMsg(String s) {
+			// TODO Auto-generated method stub
+			if (inquireFlag) {
+				String[] inquirestring=s.split(" ");
+	            if (!inquirestring[0].equals("total")) {
+	            	//pid			
+	    			String inquiid=inquirestring[0];
+	    			//jetton
+	    			
+	    			int inquirejet=Integer.parseInt(inquirestring[1]);
+	    			
+	    			int inquiremoney=Integer.parseInt(inquirestring[2]);
+	    			int inquirebet=Integer.parseInt(inquirestring[3]);
+	    			String inquireaction=inquirestring[4];
+	    			PlayInfo inquirePlayInfo=hashViews.get(inquiid);
+	    			inquirePlayInfo.setJetton(inquirejet);
+	    			inquirePlayInfo.setMoney(inquiremoney);
+	    			inquirePlayInfo.setBet(inquirebet);
+	    			
+	    			inquirePlayInfo.setAction(inquireaction);
+	    			playorder[orderJ++]=inquiid;
+	    		//System.out.println("inquirejetton"+inquirePlayInfo.getJetton()+"inquiremonet"+inquirePlayInfo.getMoney()+inquirePlayInfo.getBet()+"playorder"+playorder[0]);
+				}else {
+					//System.out.println("total"+s);
+				}					
+			}
+		}
+
+
+	private void senActionMsg() {
+		// TODO Auto-generated method stub
+		// check | call | raise num | all_in | fold eol
+		// juece 2 5 6 7
+		//System.out.print("sevenCards" + sevenCards.length);
+		//long date =System.currentTimeMillis();
+
+		
+
+		
+		cardLength=CardsHashView.size();
+		if (cardLength == 2) {
+			// getAction();
+			//System.out.println("handCards:##");
+			List<Card> handCards = new ArrayList<Card>();
+			Card card1=CardsHashView.get("hold1");
+			Card card2=CardsHashView.get("hold2");
+			handCards.add(card1);
+			handCards.add(card2);
+			//System.out.println("handCards" + handCards);
+			double twoCardWeight = computeTwoCards(handCards);
+			//System.out.println("twoCardWeight" + twoCardWeight);
+			String twoCardAction = pushtoJetton(twoCardWeight);
+			//System.out.println("twoCardAction" + twoCardAction);
+
+			if (twoCardAction != null) {
+				sendMsg(twoCardAction);
+				
+			}
+
+		}
+		if (cardLength == 5) {
+			// getAction();
+			List<Card> handCards = new ArrayList<Card>();
+			List<Card> flopCards = new ArrayList<Card>();
+			Card card1=CardsHashView.get("hold1");
+			Card card2=CardsHashView.get("hold2");
+			Card card3=CardsHashView.get("flop1");
+			Card card4=CardsHashView.get("flop2");
+			Card card5=CardsHashView.get("flop3");
+			handCards.add(card1);
+			handCards.add(card2);
+			flopCards.add(card3);
+			flopCards.add(card4);
+			flopCards.add(card5);
+
+			double fiveCardWeight = computeFiveCards(handCards, flopCards);
+			String fiveCardAction = pushtoJetton(fiveCardWeight);
+			if (fiveCardAction != null) {
+				sendMsg(fiveCardAction);
+				
+			}
+		}
+		if (cardLength == 6) {
+			// getAction();
+			List<Card> handCards = new ArrayList<Card>();
+			List<Card> flopCards = new ArrayList<Card>();
+			Card card1=CardsHashView.get("hold1");
+			Card card2=CardsHashView.get("hold2");
+			Card card3=CardsHashView.get("flop1");
+			Card card4=CardsHashView.get("flop2");
+			Card card5=CardsHashView.get("flop3");
+			Card card6=CardsHashView.get("turn");
+
+			handCards.add(card1);
+			handCards.add(card2);
+			flopCards.add(card3);
+			flopCards.add(card4);
+			flopCards.add(card5);
+			flopCards.add(card6);
+
+
+			double sixCardWeight = computeSixCards(handCards, flopCards);
+			String sixCardAction = pushtoJetton(sixCardWeight);
+			if (sixCardAction != null) {
+				sendMsg(sixCardAction);
+				
+			}
+		}
+		if (cardLength == 7) {
+			// getAction();
+			List<Card> handCards = new ArrayList<Card>();
+			List<Card> flopCards = new ArrayList<Card>();
+			Card card1=CardsHashView.get("hold1");
+			Card card2=CardsHashView.get("hold2");
+			Card card3=CardsHashView.get("flop1");
+			Card card4=CardsHashView.get("flop2");
+			Card card5=CardsHashView.get("flop3");
+			Card card6=CardsHashView.get("turn");
+			Card card7=CardsHashView.get("river");
+
+
+			handCards.add(card1);
+			handCards.add(card2);
+			flopCards.add(card3);
+			flopCards.add(card4);
+			flopCards.add(card5);
+			flopCards.add(card6);
+			flopCards.add(card7);
+
+
+			double sevenCardWeight = computeSevenCards(handCards, flopCards);
+			String sevenCardAction = pushtoJetton(sevenCardWeight);
+			if (sevenCardAction != null) {
+				sendMsg(sevenCardAction);
+				
+			}
+		}
+	
+		if (cardLength !=2 && cardLength !=5 && cardLength !=6 && cardLength !=7) {
+			sendMsg("call");
+			
+		}
+	
+		if (!s.isConnected()) {
+			try {
+				s.connect(remoteAddr);
+				sendMsg("call");
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}	
+		}
+//		boolean tmeFlag=timeOunt(begintime);
+//		System.out.print("tmeFlag##"+tmeFlag);
+	}
+
+	private void handHoldMsg(String s) {
+		// TODO Auto-generated method stub
+		if (holdFlag) {
+			
+			String[] holdString=s.split(" ");
+			Card card=new Card();
+			card.setCardType(holdString[0]);
+			card.setCardSize(holdString[1]);
+			String  cardString="hold"+cardHashI;
+			CardsHashView.put(cardString, card);
+			cardHashI++;
+			//System.out.println("handHoldMSG-cadshashvies##"+CardsHashView+cardHashI);
+ 			//next j=1   nextnext j=2
+			
+			
+		}
+	}
+
+	/**
+     * blind/ eol     
+     * (pid: bet eol)1-2
+     *    /blind eol   
+     * @param s
+     */
+	private void handBlindMsg(String s) {
+		// TODO Auto-generated method stub
+		// if has bigblind(count=2)
+		//
+		if (blindFlag) {
+			String blindString[] = s.split(" ");
+			handPlayInfo = hashViews.get(blindString[0].substring(0,4));
+			// ji lu small big bet
+			//System.out.println("blindString"+blindString[0]+blindString[1]);
+			//System.out.println("hashViews"+hashViews);
+			
+			handPlayInfo.setBet(Integer.parseInt(blindString[1]));
+
+			// sheng yu jetton
+			//jetton<smallbet  get from money
+			int remainderJetton=handPlayInfo.getJetton()
+					- Integer.parseInt(blindString[1]);
+			if (remainderJetton>=0) {
+				handPlayInfo.setJetton(remainderJetton);
+			}else {
+				//money - bu dao bigjeeton cha
+				handPlayInfo.setMoney(handPlayInfo.getMoney()-(bigJetton+remainderJetton));
+				//betton  bigjetton-smallbet
+				handPlayInfo.setJetton(bigJetton-Integer.parseInt(blindString[1]));
+			}
+			//System.out.println("handPlayInfomonney"+handPlayInfo.getMoney()+"handPlayInfo Jetton"+handPlayInfo.getJetton());
+			if (hashViews.size() == 2) {
+				// bian li hash get bigblind id
+				Iterator iter = hashViews.keySet().iterator();
+				while (iter.hasNext()) {
+					String key = (String) iter.next();
+					PlayInfo bigblind = null;
+					if (!key.equals(handPlayInfo.getPid())) {
+						//bigblind
+						 bigblind =hashViews.get(key);
+						int bigBlandBet=handPlayInfo.getBet()*2;
+						bigblind.setBet(bigBlandBet);
+						//jetton<bet  get from money
+						int remainderBigJet=bigblind.getJetton()-bigBlandBet;
+						if (remainderBigJet>=0) {
+							bigblind.setJetton(remainderBigJet);
+						}else {
+							bigblind.setMoney(bigblind.getMoney()-bigJetton-remainderBigJet);
+							bigblind.setJetton(bigJetton-bigBlandBet);
+						}
+						//System.out.println("bigblind  monney"+bigblind.getMoney()+"bigblind Jetton"+bigblind.getJetton());
+						
+					}
+					
+				}
+				
+			}
+		}
+
+	}
+
+	private void handSeatMsg(String s) {
+		if (seatFlag) {
+			
+			
+			PlayInfo   pInfo =new PlayInfo();
+			String firString[]=s.split(" ");
+			//System.out.println(firString[0]+"\n");	
+			//System.out.println(firString[1]+"\n");	
+			//System.out.println(firString[2]+"\n");	
+			if (firString[0].equals("button:")) {
+				pInfo.setButton(true);
+				pInfo.setPid(firString[1]);
+				//System.out.println(firString[1]+"firString[1]");
+				pInfo.setJetton(Integer.parseInt(firString[2]));
+				pInfo.setMoney(Integer.parseInt(firString[3]));
+				//big jetton
+				bigJetton=Integer.parseInt(firString[2]);
+				//order=0
+				pInfo.setOrder(0);
+			}else if (firString[0].equals("small")) {
+				pInfo.setIssmallBlind(true);
+				pInfo.setPid(firString[2]);
+				pInfo.setJetton(Integer.parseInt(firString[3]));
+				pInfo.setMoney(Integer.parseInt(firString[4]));
+				pInfo.setOrder(1);
+				
+			}else if (firString[0].equals("big")) {
+				pInfo.setIsbigBlind(true);
+				pInfo.setPid(firString[2]);
+				pInfo.setJetton(Integer.parseInt(firString[3]));
+				pInfo.setMoney(Integer.parseInt(firString[4]));
+				pInfo.setOrder(2);
+			}else {
+				pInfo.setPid(firString[0]);
+				pInfo.setJetton(Integer.parseInt(firString[1]));
+				pInfo.setMoney(Integer.parseInt(firString[2]));
+				pInfo.setOrder(orderI++);
+			}
+			String playId=pInfo.getPid();
+		hashViews.put(playId, pInfo);
+		////System.out.println("order:"+hashViews.get(playId).getOrder()+"jetton:"+hashViews
+			//	.get(playId).getJetton()+"moneny"+hashViews.get(playId).getMoney());
+		}
+	}
+
+	
+	/**
+     * @param two cards
+     *  
+     * return goals
+     */
+	
+	private double computeTwoCards(List<Card> cards) {
+		int[] cardValues=new int[2];
+		int[] cardColors=new int[2];
+		
+		//System.out.println("cards.get(0)"+cards.get(0).getCardSize());
+		cardValues[0] = transCardValueToInter(cards.get(0));
+		cardColors[0] = transCardColorToInter(cards.get(0));
+		cardValues[1] = transCardValueToInter(cards.get(1));
+		cardColors[1] = transCardColorToInter(cards.get(1));
+		
+		sortValuesAndColors(cardValues, cardColors);    //desc
+
+		
+
+		double duizi,meibshunzi,bigCard,huase;
+		duizi=0;meibshunzi=0;huase=0;bigCard=0;
+		if (cardValues[0] == cardValues[1]) {
+			//an bi li  suo fang duizi 
+			duizi=(double) ((SM_ONE_PAIR+1*cardValues[0]-2)*6.5/15);
+		}else if (-3<(cardValues[0] - cardValues[1])&&(cardValues[0] - cardValues[1]) <3) {
+			//yi zhang zui da duizi p
+			    double mayduiz=(double) (0.3844258*Math.max(cardValues[0], cardValues[1]));
+			    
+			   double sunzi1=0;
+	            int i=Math.abs(cardValues[0] - cardValues[1]);
+	            if (i==1) {
+					sunzi1=(double) (0.08494025*Math.max(cardValues[0], cardValues[1]));
+				}
+	            if (i==2) {
+					sunzi1=(double) (0.0637*Math.max(cardValues[0], cardValues[1]));
+				}
+			
+			   meibshunzi=(mayduiz+sunzi1);
+			   
+	  }else {
+               bigCard=(double) (Math.max(cardValues[0], cardValues[1])/14.0);
+               double mayduizs=(double) (0.3844258*Math.max(cardValues[0], cardValues[1]));
+               bigCard=bigCard+mayduizs;
+              
+            		   
+		  		
+     }
+		
+		if (cardColors[0] == cardColors[1]) {
+			// huase=(double) (1*0.06399828*SM_FLUSH);
+			huase=(double) (1*0.06399828*40);
+		}
+		
+		return duizi+meibshunzi+huase+bigCard ;
+		
+		
+			
+	}
+	
+	
+	/**
+     * @param two cards(hand cards) and three cards(flop cards)
+     *  
+     * return goals
+     */
+	
+	private double computeFiveCards(List<Card> handCards, List<Card> flopCards) {
+        double pvalue=0;
+		handCardValues=new int[2];
+		handCardColors=new int[2];
+		
+		flopCardValues=new int[3];
+		flopCardColors=new int[3];
+		int twopairI=0;
+
+		for(int i = 0; i < handCards.size(); i++)  
+        {  
+           handCardValues[i] = transCardValueToInter(handCards.get(i));
+           handCardColors[i] = transCardColorToInter(handCards.get(i));
+        }  
+
+		
+		for(int i = 0; i < flopCards.size(); i++)  
+        {  
+           flopCardValues[i] = transCardValueToInter(flopCards.get(i));
+           flopCardColors[i] = transCardColorToInter(flopCards.get(i));
+        }  
+		
+		
+		HashMap<Integer, Integer> mHashMap =new HashMap<Integer, Integer>();
+		mHashMap.put(handCardValues[0], 1);
+		if (!mHashMap.containsKey(handCardValues[1])) {
+			mHashMap.put(handCardValues[1], 1);
+		}else {
+			mHashMap.put(handCardValues[1],mHashMap.get(handCardValues[1])+1);
+		}
+		
+		
+		
+		if (!mHashMap.containsKey(flopCardValues[0])) {
+			mHashMap.put(flopCardValues[0], 1);
+		}else {
+			mHashMap.put(flopCardValues[0],mHashMap.get(flopCardValues[0])+1);
+		}
+		
+		if (!mHashMap.containsKey(flopCardValues[1])) {
+			mHashMap.put(flopCardValues[1], 1);
+		}else {
+			mHashMap.put(flopCardValues[1],mHashMap.get(flopCardValues[1])+1);
+		}
+		if (!mHashMap.containsKey(flopCardValues[2])) {
+			mHashMap.put(flopCardValues[2], 1);
+		}else {
+			mHashMap.put(flopCardValues[2],mHashMap.get(flopCardValues[2])+1);
+		}
+		
+		Iterator iter = mHashMap.entrySet().iterator();
+		int[] fiveNum={handCardValues[0],handCardValues[1],flopCardValues[0],flopCardValues[1],flopCardValues[2]};
+    	int[] fiveColor={handCardColors[0],handCardColors[1],flopCardColors[0],flopCardColors[1],flopCardColors[2]};
+    	sortValuesAndColors(fiveNum, fiveColor);
+		//5
+          if (mHashMap.size()==5) {
+	       //p shuzi +p(color ordered by value)
+        	  //1 2 3 4 5
+          	if (fiveNum[0]==14&&fiveNum[1]==5&&fiveNum[2]==4&&fiveNum[3]==3&&fiveNum[4]==2) {
+  				fiveNum[0]=1;
+  				sortValuesAndColors(fiveNum, fiveColor);
+  			}
+       		pvalue=fiveShunZi(fiveNum)+fiveFlush(fiveColor, fiveNum)+fiveNum[0]-2;
+		}
+		//4
+        
+		 if (mHashMap.size()==4) {
+			 double value = 0;
+			 while (iter.hasNext()) {
+				Map.Entry entry = (Map.Entry) iter.next();
+	   
+	    	  if ((Integer) entry.getValue()==2) {
+	  			value =(Integer) entry.getKey();
+	  			break;	
+	    	  }
+			 }
+			 
+			pvalue=handCotainValue(value)+fiveFlush(fiveColor, fiveNum);
+			 
+	  
+	  }	
+		//two   pair
+		int[] twopair=new int[2];
+		
+		if (mHashMap.size()==3) {
+			int threevalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==2) {		  			
+			    		
+			    		    twopair[twopairI++]=(Integer) entry.getKey();			    		   
+				}
+			    	  if ((Integer) entry.getValue()==3) {
+				    		
+			  		        threevalue=(Integer) entry.getKey();
+				}
+			    	  
+		 } 
+			//puan dun 2 21
+			if (twopairI>0) {
+				pvalue=handCotainValue(twopair[0])+handCotainValue(twopair[1]);
+				
+			}
+			//3 1 1
+			if (threevalue>0) {
+				pvalue=handThreeValue(threevalue);
+			}
+		}
+	
+		//2
+		if (mHashMap.size()==2) {
+			int fourvalue = 0;
+			int threevalue = 0;
+			int twovalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==4) {
+			    		 
+			  		        fourvalue=(Integer) entry.getKey();
+				}
+			    	  if ((Integer) entry.getValue()==3) {			    		 
+			    		  threevalue=(Integer) entry.getKey();			  		       
+				}
+			    	  if ((Integer) entry.getValue()==2) {			    		 
+			    		  twovalue=(Integer) entry.getKey();			  		       
+				}
+		  }
+			//4 1
+			if (fourvalue>0) {
+			  pvalue=SM_FOUR+fourvalue;
+		}
+		  //hu lu
+		  if (threevalue>0&&twovalue>0) {
+				//2 min
+				pvalue=SM_FULL_HOUSE+threevalue-2;
+			}
+			
+		}
+		
+		
+	///
+	return pvalue;
+	}
+
+	/**
+     * @param two cards(hand cards) and four cards(flop cards)
+     *  
+     * return goals
+	 * @return 
+     */
+	
+	private double computeSixCards(List<Card> handCards, List<Card> flopCards) {
+		List<Card> temp_flop=new ArrayList<Card>() ;
+		double[] pvalues=new double[] {0, 0, 0, 0,0,0};
+		double pvalue = 0;
+		//hand2  waimian 3
+		for (int i = 0; i < 4; i++) {
+			for (int j = 0; j < 4; j++) {
+				if (j!= i) {
+					Card temp_card=new Card();
+					temp_card=flopCards.get(j);
+					temp_flop.add(temp_card);
+				}
+			}
+			List<Card> sixtoFiveCard=new ArrayList<Card>() ;
+			sixtoFiveCard.add(handCards.get(0));
+			sixtoFiveCard.add(handCards.get(1));
+			sixtoFiveCard.add(temp_flop.get(0));
+			sixtoFiveCard.add(temp_flop.get(1));
+			sixtoFiveCard.add(temp_flop.get(2));
+			pvalues[i]=sixtoFiveCards(sixtoFiveCard);
+			temp_flop.clear();
+		}
+		//hand 1      waimian 4
+		for (int i = 0; i <2; i++) {
+
+
+			List<Card> sixtoFiveCard=new ArrayList<Card>() ;;
+			sixtoFiveCard.add(handCards.get(i));		
+			sixtoFiveCard.add(flopCards.get(0));
+			sixtoFiveCard.add(flopCards.get(1));
+			sixtoFiveCard.add(flopCards.get(2));
+			sixtoFiveCard.add(flopCards.get(3));
+
+			pvalues[i+4]=sixtoFiveCards2(sixtoFiveCard);
+			
+		
+		}
+		
+
+		///
+		return pvalue;
+	}
+	/**
+     * @param two cards(hand cards) and five cards(flop cards)
+     *  get5 from7-flop5
+     * return goals
+	 * @return 
+     */
+	private double computeSevenCards(List<Card> handCards, List<Card> flopCards){
+		new ArrayList<Card>();
+		double[] pvalues=new double[21] ;
+		double[] fiveFlopValues=new double[1];
+		//hand2  waimian5  renxuan 5
+		List<Card> sevenCards=new ArrayList<Card>() ;
+	
+			sevenCards.add(handCards.get(0));
+			sevenCards.add(handCards.get(1));
+			
+	
+		
+		
+			sevenCards.add(flopCards.get(0));
+			sevenCards.add(flopCards.get(1));
+			sevenCards.add(flopCards.get(2));
+			sevenCards.add(flopCards.get(3));
+			sevenCards.add(flopCards.get(4));
+	
+		List<Card> seventofiveCards=new ArrayList<Card>() ;
+		int pvalueI=0;
+		for (int a = 0; a <=2; a++) {
+			for (int b = a+1; b <=3; b++) {
+				for (int  x= b+1; x <= 4; x++) {
+					for (int y = x+1; y <=5; y++) {
+						for (int z = y+1; z <= 6; z++) {
+							seventofiveCards.add(sevenCards.get(a));
+							seventofiveCards.add(sevenCards.get(b));
+							seventofiveCards.add(sevenCards.get(x));
+							seventofiveCards.add(sevenCards.get(y));
+							seventofiveCards.add(sevenCards.get(z));
+							///value
+							pvalues[pvalueI++]=seventoFiveCards2(seventofiveCards);
+							seventofiveCards.clear();
+						}
+						
+					}
+					
+				}
+				
+			}
+			
+		}				
+		//5FLOPS CARD
+		fiveFlopValues[0]=seventoFiveCards2(flopCards);
+		double maxValue=0;
+		for (int i = 0; i < 21; i++) {
+			maxValue=Math.max(maxValue, pvalues[i]);
+			
+		}
+		//shuzi zhi shang  bubian  ,xiamian  -max5
+		if (maxValue<65) {
+			 maxValue=maxValue-fiveFlopValues[0];
+		}
+		
+		return maxValue;
+	}
+	private double seventoFiveCards2(List<Card> fiveCards) {
+		// TODO Auto-generated method stub
+
+        double pvalue=0; 
+				
+		int[] fiveCardValues=new int [5];
+		int[] fiveCardColors=new int [5];
+		int twopairI=0;		
+		for(int j = 0; j < fiveCards.size(); j++)  
+        {  
+			fiveCardValues[j] = transCardValueToInter(fiveCards.get(j));
+			fiveCardColors[j] = transCardColorToInter(fiveCards.get(j));
+        }  
+		
+		
+		HashMap<Integer, Integer> mHashMap =new HashMap<Integer, Integer>();
+		mHashMap.put(fiveCardValues[0], 1);
+					
+		if (!mHashMap.containsKey(fiveCardValues[1])) {
+			mHashMap.put(fiveCardValues[1], 1);
+		}else {
+			mHashMap.put(fiveCardValues[1],mHashMap.get(fiveCardValues[1])+1);
+		}
+		
+		if (!mHashMap.containsKey(fiveCardValues[2])) {
+			mHashMap.put(fiveCardValues[2], 1);
+		}else {
+			mHashMap.put(fiveCardValues[2],mHashMap.get(fiveCardValues[2])+1);
+		}
+		
+		if (!mHashMap.containsKey(fiveCardValues[3])) {
+			mHashMap.put(fiveCardValues[3], 1);
+		}else {
+			mHashMap.put(fiveCardValues[3],mHashMap.get(fiveCardValues[3])+1);
+		}
+		if (!mHashMap.containsKey(fiveCardValues[4])) {
+			mHashMap.put(fiveCardValues[4], 1);
+		}else {
+			mHashMap.put(fiveCardValues[4],mHashMap.get(fiveCardValues[4])+1);
+		}
+		
+		Iterator iter = mHashMap.entrySet().iterator();
+		int[] fiveNum={fiveCardValues[0],fiveCardValues[1],fiveCardValues[2],fiveCardValues[3],fiveCardValues[4]};
+    	int[] fiveColor={fiveCardColors[0],fiveCardColors[1],fiveCardColors[2],fiveCardColors[3],fiveCardColors[4]};
+    	sortValuesAndColors(fiveNum, fiveColor);
+		//5
+          if (mHashMap.size()==5) {
+	       //p shuzi +p(color ordered by value)
+        	  //1 2 3 4 5
+          	if (fiveNum[0]==14&&fiveNum[1]==5&&fiveNum[2]==4&&fiveNum[3]==3&&fiveNum[4]==2) {
+  				fiveNum[0]=1;
+  				sortValuesAndColors(fiveNum, fiveColor);
+  			}
+       		pvalue=seventoShunZi(fiveNum)+seventoFlush(fiveColor, fiveNum)+fiveNum[0]-2;
+		}
+		//4
+        
+		 if (mHashMap.size()==4) {
+			 double value = 0;
+			 while (iter.hasNext()) {
+				Map.Entry entry = (Map.Entry) iter.next();
+	   
+	    	  if ((Integer) entry.getValue()==2) {
+	  			value =(Integer) entry.getKey();
+	  			break;	
+	    	  }
+			 }
+			 
+			pvalue=SM_ONE_PAIR+value-2;
+			 
+	  
+	  }	
+		//two   pair
+		int[] twopair=new int[2];
+		
+		if (mHashMap.size()==3) {
+			int threevalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==2) {		  			 
+			    		
+			    		    twopair[twopairI++]=(Integer) entry.getKey();			    		   
+				}
+			    	  if ((Integer) entry.getValue()==3) {
+				    		
+			  		        threevalue=(Integer) entry.getKey();
+				}
+			    	  
+		 } 
+			//puan dun 2 21
+			if (twopairI>0) {
+				pvalue=SM_TWO_PAIR+Math.max(twopair[0], twopair[1])-2;
+				
+			}
+			//3 1 1
+			if (threevalue>0) {
+				pvalue=SM_THREE+threevalue-2;
+			}
+		}
+	
+		//2
+		if (mHashMap.size()==2) {
+			int fourvalue = 0;
+			int threevalue = 0;
+			int twovalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==4) {
+			    		 
+			  		        fourvalue=(Integer) entry.getKey();
+				}
+			    	  if ((Integer) entry.getValue()==3) {			    		 
+			    		  threevalue=(Integer) entry.getKey();			  		       
+				}
+			    	  if ((Integer) entry.getValue()==2) {			    		 
+			    		  twovalue=(Integer) entry.getKey();			  		       
+				}
+		  }
+			//4 1
+			if (fourvalue>0) {
+			  pvalue=SM_FOUR+fourvalue;
+		}
+		  //hu lu
+		  if (threevalue>0&&twovalue>0) {
+				//2 min
+				pvalue=SM_FULL_HOUSE+threevalue-2;
+			}
+			
+		}
+		
+		
+	///
+	
+		return pvalue;
+	}
+
+	private double seventoFlush(int[] fiveNum, int[] fiveValue) {  //Num is colors Value is numbers is orded;
+		double value=0;
+		HashMap<Integer, Integer> colorHashMap =new HashMap<Integer, Integer>();
+		colorHashMap.put(fiveNum[0], 1);
+		if (!colorHashMap.containsKey(fiveNum[1])) {
+			colorHashMap.put(fiveNum[1], 1);
+		}else {
+			colorHashMap.put(fiveNum[1],colorHashMap.get(fiveNum[1])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[2])) {
+			colorHashMap.put(fiveNum[2], 1);
+		}else {
+			colorHashMap.put(fiveNum[2],colorHashMap.get(fiveNum[2])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[3])) {
+			colorHashMap.put(fiveNum[3], 1);
+		}else {
+			colorHashMap.put(fiveNum[3],colorHashMap.get(fiveNum[3])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[4])) {
+			colorHashMap.put(fiveNum[4], 1);
+		}else {
+			colorHashMap.put(fiveNum[4],colorHashMap.get(fiveNum[4])+1);
+		}
+		
+		if (colorHashMap.size() == 1) {
+			value=(double) SM_FLUSH+ fiveValue[0];
+		}else {
+			value=0;
+		}
+	 return value;
+	}
+
+	private double seventoShunZi(int[] fiveNum) {
+		double value=0;       
+        int[] distance = new int[4];
+        int count_1 =0;
+		for (int i = 0; i < distance.length; i++) {
+			distance[i]=fiveNum[i]-fiveNum[i+1];
+			if (distance[i] == 1) {
+				count_1++;
+			}
+		}
+		
+		if (count_1 == 4) {
+			//min 5
+			value=SM_STRAIGHT+fiveNum[0]-5;
+		}else {
+			value=0;
+		}
+			
+		
+		
+		return value;
+	}
+
+	private double sixtoFiveCards2(List<Card> fiveCards) {
+		// TODO Auto-generated method stub
+
+        double pvalue=0;
+		handCardValues=new int[1];
+		handCardColors=new int[1];
+		
+		flopCardValues=new int[4];
+		flopCardColors=new int[4];
+		int twopairI=0;
+
+           handCardValues[0] = transCardValueToInter(fiveCards.get(0));
+           handCardColors[0] = transCardColorToInter(fiveCards.get(0));   
+
+		
+		for(int j = 1; j < fiveCards.size(); j++)  
+        {  
+           flopCardValues[j-1] = transCardValueToInter(fiveCards.get(j));
+           flopCardColors[j-1] = transCardColorToInter(fiveCards.get(j));
+        }  
+		
+		
+		HashMap<Integer, Integer> mHashMap =new HashMap<Integer, Integer>();
+		mHashMap.put(handCardValues[0], 1);
+
+		
+		
+		
+		if (!mHashMap.containsKey(flopCardValues[0])) {
+			mHashMap.put(flopCardValues[0], 1);
+		}else {
+			mHashMap.put(flopCardValues[0],mHashMap.get(flopCardValues[0])+1);
+		}
+		
+		if (!mHashMap.containsKey(flopCardValues[1])) {
+			mHashMap.put(flopCardValues[1], 1);
+		}else {
+			mHashMap.put(flopCardValues[1],mHashMap.get(flopCardValues[1])+1);
+		}
+		if (!mHashMap.containsKey(flopCardValues[2])) {
+			mHashMap.put(flopCardValues[2], 1);
+		}else {
+			mHashMap.put(flopCardValues[2],mHashMap.get(flopCardValues[2])+1);
+		}
+		
+		if (!mHashMap.containsKey(flopCardValues[3])) {
+			mHashMap.put(flopCardValues[3], 1);
+		}else {
+			mHashMap.put(flopCardValues[3],mHashMap.get(flopCardValues[3])+1);
+		}
+		
+		Iterator iter = mHashMap.entrySet().iterator();
+		int[] fiveNum={handCardValues[0],flopCardValues[0],flopCardValues[1],flopCardValues[2],flopCardValues[3]};
+    	int[] fiveColor={handCardColors[0],flopCardColors[0],flopCardColors[1],flopCardColors[2],flopCardColors[3]};
+    	sortValuesAndColors(fiveNum, fiveColor);
+		//5
+          if (mHashMap.size()==5) {
+	       //p shuzi +p(color ordered by value)
+        	  //1 2 3 4 5
+          	if (fiveNum[0]==14&&fiveNum[1]==5&&fiveNum[2]==4&&fiveNum[3]==3&&fiveNum[4]==2) {
+  				fiveNum[0]=1;
+  				sortValuesAndColors(fiveNum, fiveColor);
+  			}
+       		pvalue=sixtoShunZi(fiveNum)+sixtoFlush(fiveColor, fiveNum)+fiveNum[0]-2;
+		}
+		//4
+        
+		 if (mHashMap.size()==4) {
+			 double value = 0;
+			 while (iter.hasNext()) {
+				Map.Entry entry = (Map.Entry) iter.next();
+	   
+	    	  if ((Integer) entry.getValue()==2) {
+	  			value =(Integer) entry.getKey();
+	  			break;	
+	    	  }
+			 }
+			 
+			pvalue=handCotainValue2(value)+fiveFlush(fiveColor, fiveNum);
+			 
+	  
+	  }	
+		//two   pair
+		int[] twopair=new int[2];
+		
+		if (mHashMap.size()==3) {
+			int threevalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==2) {		  			 
+			    		
+			    		    twopair[twopairI++]=(Integer) entry.getKey();			    		   
+				}
+			    	  if ((Integer) entry.getValue()==3) {
+				    		
+			  		        threevalue=(Integer) entry.getKey();
+				}
+			    	  
+		 } 
+			//puan dun 2 21
+			if (twopairI>0) {
+				pvalue=handCotainValue2(twopair[0])+handCotainValue2(twopair[1]);
+				
+			}
+			//3 1 1
+			if (threevalue>0) {
+				pvalue=handThreeValue2(threevalue);
+			}
+		}
+	
+		//2
+		if (mHashMap.size()==2) {
+			int fourvalue = 0;
+			int threevalue = 0;
+			int twovalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==4) {
+			    		 
+			  		        fourvalue=(Integer) entry.getKey();
+				}
+			    	  if ((Integer) entry.getValue()==3) {			    		 
+			    		  threevalue=(Integer) entry.getKey();			  		       
+				}
+			    	  if ((Integer) entry.getValue()==2) {			    		 
+			    		  twovalue=(Integer) entry.getKey();			  		       
+				}
+		  }
+			//4 1
+			if (fourvalue>0) {
+			  pvalue=SM_FOUR+fourvalue;
+		}
+		  //hu lu
+		  if (threevalue>0&&twovalue>0) {
+				//2 min
+				pvalue=SM_FULL_HOUSE+threevalue-2;
+			}
+			
+		}
+		
+		
+	///
+	
+		return pvalue;
+	}
+  private double handThreeValue2(int threevalue) {
+		// TODO Auto-generated method stub
+		int number = 0;		
+		double pvalue = 0;
+		if (handCardValues[0]==threevalue) {
+			number++;
+		}
+		
+		//two in hold
+		   if (number==1) {
+			 
+			pvalue=SM_THREE+threevalue;
+		}
+		   // none
+		   if(number==0) {
+		   pvalue=handCardValues[0]/14;
+			
+		}
+		   return pvalue;
+	}
+
+	//hand 1    waimian 4
+	private double handCotainValue2(double value) {
+		// TODO Auto-generated method stub
+		int number = 0;
+		int notduizi1=0;
+		double pvalue = 0;
+		if (handCardValues[0]==value) {
+			number++;
+		}else {
+			notduizi1=handCardValues[0];
+		}
+			
+	   //one in hanf
+	   //  P(duizi )+p(shunzi )
+	   if (number==1) {
+		   int[] fiveNum={handCardValues[0],flopCardValues[0],flopCardValues[1],flopCardValues[2],flopCardValues[3]};
+		  
+		   pvalue=SM_ONE_PAIR+value+ fiveShunZi(fiveNum);
+	}
+	   //none
+	   if (number==0) {
+		   int[] fiveNum={handCardValues[0],flopCardValues[0],flopCardValues[1],flopCardValues[2],flopCardValues[3]};
+		pvalue=fiveShunZi(fiveNum)+notduizi1*3/46;
+	}
+		return pvalue;
+	}
+
+	private double sixtoFiveCards(List<Card> fiveCards) {
+		// TODO Auto-generated method stub
+
+        double pvalue=0;
+		handCardValues=new int[2];
+		handCardColors=new int[2];
+		
+		flopCardValues=new int[3];
+		flopCardColors=new int[3];
+		int twopairI=0;
+
+		for(int i = 0; i < 2; i++)  
+        {  
+           handCardValues[i] = transCardValueToInter(fiveCards.get(i));
+           handCardColors[i] = transCardColorToInter(fiveCards.get(i));
+        }  
+
+		
+		for(int j = 2; j < fiveCards.size(); j++)  
+        {  
+           flopCardValues[j-2] = transCardValueToInter(fiveCards.get(j));
+           flopCardColors[j-2] = transCardColorToInter(fiveCards.get(j));
+        }  
+		
+		
+		HashMap<Integer, Integer> mHashMap =new HashMap<Integer, Integer>();
+		mHashMap.put(handCardValues[0], 1);
+		if (!mHashMap.containsKey(handCardValues[1])) {
+			mHashMap.put(handCardValues[1], 1);
+		}else {
+			mHashMap.put(handCardValues[1],mHashMap.get(handCardValues[1])+1);
+		}
+		
+		
+		
+		if (!mHashMap.containsKey(flopCardValues[0])) {
+			mHashMap.put(flopCardValues[0], 1);
+		}else {
+			mHashMap.put(flopCardValues[0],mHashMap.get(flopCardValues[0])+1);
+		}
+		
+		if (!mHashMap.containsKey(flopCardValues[1])) {
+			mHashMap.put(flopCardValues[1], 1);
+		}else {
+			mHashMap.put(flopCardValues[1],mHashMap.get(flopCardValues[1])+1);
+		}
+		if (!mHashMap.containsKey(flopCardValues[2])) {
+			mHashMap.put(flopCardValues[2], 1);
+		}else {
+			mHashMap.put(flopCardValues[2],mHashMap.get(flopCardValues[2])+1);
+		}
+		
+		Iterator iter = mHashMap.entrySet().iterator();
+		int[] fiveNum={handCardValues[0],handCardValues[1],flopCardValues[0],flopCardValues[1],flopCardValues[2]};
+    	int[] fiveColor={handCardColors[0],handCardColors[1],flopCardColors[0],flopCardColors[1],flopCardColors[2]};
+    	sortValuesAndColors(fiveNum, fiveColor);
+		//5
+          if (mHashMap.size()==5) {
+	       //p shuzi +p(color ordered by value)
+        	  //1 2 3 4 5
+          	if (fiveNum[0]==14&&fiveNum[1]==5&&fiveNum[2]==4&&fiveNum[3]==3&&fiveNum[4]==2) {
+  				fiveNum[0]=1;
+  				sortValuesAndColors(fiveNum, fiveColor);
+  			}
+       		pvalue=sixtoShunZi(fiveNum)+sixtoFlush(fiveColor, fiveNum)+fiveNum[0]-2;
+		}
+		//4
+        
+		 if (mHashMap.size()==4) {
+			 double value = 0;
+			 while (iter.hasNext()) {
+				Map.Entry entry = (Map.Entry) iter.next();
+	   
+	    	  if ((Integer) entry.getValue()==2) {
+	  			value =(Integer) entry.getKey();
+	  			break;	
+	    	  }
+			 }
+			 
+			pvalue=handCotainValue(value)+fiveFlush(fiveColor, fiveNum);
+			 
+	  
+	  }	
+		//two   pair
+		int[] twopair=new int[2];
+		
+		if (mHashMap.size()==3) {
+			int threevalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==2) {		  			
+			    		
+			    		    twopair[twopairI++]=(Integer) entry.getKey();			    		   
+				}
+			    	  if ((Integer) entry.getValue()==3) {
+				    		
+			  		        threevalue=(Integer) entry.getKey();
+				}
+			    	  
+		 } 
+			//puan dun 2 21
+			if (twopairI>0) {
+				pvalue=handCotainValue(twopair[0])+handCotainValue(twopair[1]);
+				
+			}
+			//3 1 1
+			if (threevalue>0) {
+				pvalue=handThreeValue(threevalue);
+			}
+		}
+	
+		//2
+		if (mHashMap.size()==2) {
+			int fourvalue = 0;
+			int threevalue = 0;
+			int twovalue=0;
+			while (iter.hasNext()) {
+			    Map.Entry entry = (Map.Entry) iter.next();
+			   
+			    	  if ((Integer) entry.getValue()==4) {
+			    		 
+			  		        fourvalue=(Integer) entry.getKey();
+				}
+			    	  if ((Integer) entry.getValue()==3) {			    		 
+			    		  threevalue=(Integer) entry.getKey();			  		       
+				}
+			    	  if ((Integer) entry.getValue()==2) {			    		 
+			    		  twovalue=(Integer) entry.getKey();			  		       
+				}
+		  }
+			//4 1
+			if (fourvalue>0) {
+			  pvalue=SM_FOUR+fourvalue;
+		}
+		  //hu lu
+		  if (threevalue>0&&twovalue>0) {
+				//2 min
+				pvalue=SM_FULL_HOUSE+threevalue-2;
+			}
+			
+		}
+		
+		
+	///
+	
+		return pvalue;
+	}
+
+	private double sixtoFlush(int[] fiveNum, int[] fiveValue) {  //Num is colors Value is numbers is orded;
+		double value=0;
+		HashMap<Integer, Integer> colorHashMap =new HashMap<Integer, Integer>();
+		colorHashMap.put(fiveNum[0], 1);
+		if (!colorHashMap.containsKey(fiveNum[1])) {
+			colorHashMap.put(fiveNum[1], 1);
+		}else {
+			colorHashMap.put(fiveNum[1],colorHashMap.get(fiveNum[1])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[2])) {
+			colorHashMap.put(fiveNum[2], 1);
+		}else {
+			colorHashMap.put(fiveNum[2],colorHashMap.get(fiveNum[2])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[3])) {
+			colorHashMap.put(fiveNum[3], 1);
+		}else {
+			colorHashMap.put(fiveNum[3],colorHashMap.get(fiveNum[3])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[4])) {
+			colorHashMap.put(fiveNum[4], 1);
+		}else {
+			colorHashMap.put(fiveNum[4],colorHashMap.get(fiveNum[4])+1);
+		}
+		
+		if (colorHashMap.size() == 1) {
+			value=(double) SM_FLUSH+ fiveValue[0];
+		}else if (colorHashMap.size() == 2) {
+			if (colorHashMap.containsValue(4)) {
+				if (fiveNum[0]==fiveNum[1]) {
+					value =(double) (SM_FLUSH + fiveNum[0]) * 9/46;
+				}else if (fiveNum[0]==fiveNum[2]) {
+					value =(double) (SM_FLUSH + fiveNum[0]) * 9/46;
+				}else {
+					value =(double) (SM_FLUSH + fiveNum[1]) * 9/46;
+				}
+			}
+		}
+	 return value;
+	}
+
+	private double handThreeValue(int threevalue) {
+		// TODO Auto-generated method stub
+		int number = 0;		
+		double pvalue = 0;
+		if (handCardValues[0]==threevalue) {
+			number++;
+		}
+		if (handCardValues[1]==threevalue) {
+			number++;
+		}
+		//two in hold
+		   if (number==2||number==1) {
+			 
+			pvalue=SM_THREE+threevalue;
+		}
+		   // none
+		   if(number==0) {
+		   pvalue=Math.max(handCardValues[0], handCardValues[1])/14;
+			
+		}
+		   return pvalue;
+	}
+
+	private double handCotainValue(double value) {
+		// TODO Auto-generated method stub
+		int number = 0;
+		int notduizi1=0;
+		int notduizi2=0;
+		double pvalue = 0;
+		if (handCardValues[0]==value) {
+			number++;
+		}else {
+			notduizi1=handCardValues[0];
+		}
+		if (handCardValues[1]==value) {
+			number++;
+		}else {
+			notduizi2=handCardValues[1];
+		}
+		
+		//two in hold
+	   if (number==2) {
+		   int[] fiveNum={handCardValues[0],handCardValues[1],flopCardValues[0],flopCardValues[1],flopCardValues[2]};
+			  
+		pvalue=SM_ONE_PAIR+value+fiveShunZi(fiveNum);
+	}
+	   //one in hanf
+	   //  P(duizi )+p(shunzi )
+	   if (number==1) {
+		   int[] fiveNum={handCardValues[0],handCardValues[1],flopCardValues[0],flopCardValues[1],flopCardValues[2]};
+		  
+		   pvalue=SM_ONE_PAIR+value+notduizi1*(6*44/(47*46))+notduizi2*(6*44/(47*46))+ fiveShunZi(fiveNum);
+	}
+	   //none
+	   if (number==0) {
+		   int[] fiveNum={handCardValues[0],handCardValues[1],flopCardValues[0],flopCardValues[1],flopCardValues[2]};
+		pvalue=fiveShunZi(fiveNum);
+	}
+		return pvalue;
+	}
+
+	private double fiveShunZi(int[] fiveNum) {
+		double value=0;       
+        int[] distance = new int[4];
+        int count_1 =0;
+		for (int i = 0; i < distance.length; i++) {
+			distance[i]=fiveNum[i]-fiveNum[i+1];
+			if (distance[i] == 1) {
+				count_1++;
+			}
+		}
+		
+		if (count_1 == 4) {
+			//min 5
+			value=SM_STRAIGHT+fiveNum[0]-5;
+		}else if (count_1==3) {
+			int where=0;
+			int what=0;
+			for (int i = 0; i < distance.length; i++) {
+				if (distance[i] != 1) {
+					what=distance[i];
+					break;
+				}
+				where++;
+			}
+			if (where==0) {
+				value=(double) (SM_STRAIGHT + fiveNum[1]+1)*(28+8*39)/47/23/2+ (SM_STRAIGHT + fiveNum[1])*(28+8*39)/47/23/2;
+			}else if (where==3) {
+				value=(double) (SM_STRAIGHT + fiveNum[0]+1)*(28+8*39)/47/23/2+ (SM_STRAIGHT + fiveNum[0])*(28+8*39)/47/23/2;
+
+			}else if (what==2) {
+				value=(double) (SM_STRAIGHT + fiveNum[0])*(6+4*43)/47/23;
+			}else {
+				value=0;
+			}
+		}else if (count_1==2) {
+			if (distance[0]==2 && distance[1]== 1 && distance[2]==1 && distance[3]==2) {
+				value=(double) (SM_STRAIGHT+fiveNum[0])*(6+4*43)/47/23+ (SM_STRAIGHT+fiveNum[1])*(6+4*43)/47/23;
+			}else if ((distance[0]==2 && distance[1]== 1 && distance[2]==1) || (distance[0]==1 && distance[1]== 2 && distance[2]==1)  || (distance[0]==1 && distance[1]== 1 && distance[2]==2) ) {
+				value=(double) (SM_STRAIGHT+fiveNum[0])*(6+4*43)/47/23;
+			}else if ((distance[1]==2 && distance[2]== 1 && distance[3]==1) || (distance[1]==1 && distance[2]== 2 && distance[3]==1)  || (distance[1]==1 && distance[2]== 1 && distance[3]==2) ) {
+				value=(double) (SM_STRAIGHT+fiveNum[1])*(6+4*43)/47/23;
+			}else {
+				value=0;
+			}
+		}else {
+			value=0;
+		}
+			
+		
+		
+		return value;
+	}
+	
+	
+	
+	private double sixtoShunZi(int[] fiveNum) {
+		double value=0;       
+        int[] distance = new int[4];
+        int count_1 =0;
+		for (int i = 0; i < distance.length; i++) {
+			distance[i]=fiveNum[i]-fiveNum[i+1];
+			if (distance[i] == 1) {
+				count_1++;
+			}
+		}
+		
+		if (count_1 == 4) {
+			//min 5
+			value=SM_STRAIGHT+fiveNum[0]-5;
+		}else if (count_1==3) {
+			int where=0;
+			int what=0;
+			for (int i = 0; i < distance.length; i++) {
+				if (distance[i] != 1) {
+					what=distance[i];
+					break;
+				}
+				where++;
+			}
+			if (where==0) {
+				value=(double) (SM_STRAIGHT + fiveNum[1]+1)*4/46+ (SM_STRAIGHT + fiveNum[1])*4/46;
+			}else if (where==3) {
+				value=(double) (SM_STRAIGHT + fiveNum[0]+1)*4/46+ (SM_STRAIGHT + fiveNum[0])*4/46;
+
+			}else if (what==2) {
+				value=(double) (SM_STRAIGHT + fiveNum[0])*4/46;
+			}else {
+				value=0;
+			}
+		}else if (count_1==2) {
+			if (distance[0]==2 && distance[1]== 1 && distance[2]==1 && distance[3]==2) {
+				value=(double) (SM_STRAIGHT+fiveNum[0])*4/46+ (SM_STRAIGHT+fiveNum[1])*4/46;
+			}else if ((distance[0]==2 && distance[1]== 1 && distance[2]==1) || (distance[0]==1 && distance[1]== 2 && distance[2]==1)  || (distance[0]==1 && distance[1]== 1 && distance[2]==2) ) {
+				value=(double) (SM_STRAIGHT+fiveNum[0])*4/46;
+			}else if ((distance[1]==2 && distance[2]== 1 && distance[3]==1) || (distance[1]==1 && distance[2]== 2 && distance[3]==1)  || (distance[1]==1 && distance[2]== 1 && distance[3]==2) ) {
+				value=(double) (SM_STRAIGHT+fiveNum[1])*4/46;
+			}else {
+				value=0;
+			}
+		}else {
+			value=0;
+		}
+			
+		
+		
+		return value;
+	}
+	
+	
+	private double fiveFlush(int[] fiveNum, int[] fiveValue) {  //Num is colors Value is numbers is orded;
+		double value=0;
+		HashMap<Integer, Integer> colorHashMap =new HashMap<Integer, Integer>();
+		colorHashMap.put(fiveNum[0], 1);
+		if (!colorHashMap.containsKey(fiveNum[1])) {
+			colorHashMap.put(fiveNum[1], 1);
+		}else {
+			colorHashMap.put(fiveNum[1],colorHashMap.get(fiveNum[1])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[2])) {
+			colorHashMap.put(fiveNum[2], 1);
+		}else {
+			colorHashMap.put(fiveNum[2],colorHashMap.get(fiveNum[2])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[3])) {
+			colorHashMap.put(fiveNum[3], 1);
+		}else {
+			colorHashMap.put(fiveNum[3],colorHashMap.get(fiveNum[3])+1);
+		}
+		
+		if (!colorHashMap.containsKey(fiveNum[4])) {
+			colorHashMap.put(fiveNum[4], 1);
+		}else {
+			colorHashMap.put(fiveNum[4],colorHashMap.get(fiveNum[4])+1);
+		}
+		
+		if (colorHashMap.size() == 1) {
+			value=(double) SM_FLUSH+ fiveValue[0];
+		}else if (colorHashMap.size() == 2) {
+			if (colorHashMap.containsValue(4)) {
+				if (fiveNum[0]==fiveNum[1]) {
+					value =(double) (SM_FLUSH + fiveNum[0]) * (36+9*38)/47/23;
+				}else if (fiveNum[0]==fiveNum[2]) {
+					value =(double) (SM_FLUSH + fiveNum[0]) * (36+9*38)/47/23;
+				}else {
+					value =(double) (SM_FLUSH + fiveNum[1]) * (36+9*38)/47/23;
+				}
+			}
+		}
+	 return value;
+	}
+
+	private void mergeCardValuesAndColors(int[] handCardValues, int[] handCardColors,
+			int[] flopCardValues, int[] flopCardColors, int[] sortedCardValues, int[] sortedCardColors) {
+       for (int i = 0; i < handCardValues.length; i++) {
+    	   sortedCardValues[i] = handCardValues[i];
+    	   sortedCardColors[i] = handCardColors[i];
+	}
+       for (int j = 0 ; j < flopCardValues.length; j++) {
+    	   sortedCardValues[j+handCardValues.length] = flopCardValues[j];
+    	   sortedCardColors[j+handCardValues.length] = flopCardColors[j];
+	}
+	
+     sortValuesAndColors( sortedCardValues, sortedCardColors);
+  
+
+	}
+
+
+
+//
+	private   String pushtoJetton(double d){
+
+		   // 1.minBet2.money3.jetton.4.betpeople5.unbetpeople 6.twoCardsType7. 
+		
+		//check  call  /raise num/all in/fold
+		String myAction = null;
+		//zhequan actionid		
+		//zi ji 
+	   PlayInfo myInfo=hashViews.get(this.playId);	
+	   //pai qunzhong
+	   double myCardsWeight=d;
+	   //how much need
+	   double  prePlayJetton = 0;
+	   int betPeople=betpeopleNum(playorder);	 
+		 //min >=0
+		int iminJetton=(int) (prePlayJetton-myInfo.getBet());	 
+		int hasBet=myInfo.getBet();
+		int SUM=myInfo.getJetton()+myInfo.getMoney();
+		
+		cardLength=CardsHashView.size();
+		//System.out.println("pushtojetton-cardLength##"+cardLength);
+		if (cardLength==2) {
+			//int betPeople, double myCardsWeight,int iminJetton,int hasBet,int SUM
+		   myAction=twoCdAction(betPeople,myCardsWeight,iminJetton,hasBet,SUM);
+		}				
+		//5zhang pai
+		if (cardLength==5) {
+			myAction=fiveCdAction(betPeople,myCardsWeight,iminJetton,hasBet,SUM);
+			
+		}
+		if (cardLength==6) {
+			myAction=sixCdAction(betPeople,myCardsWeight,iminJetton,hasBet,SUM);
+			
+		}
+		if (cardLength==7) {
+			myAction=sevenCdAction(betPeople,myCardsWeight,iminJetton,hasBet,SUM);			
+		}							
+		//0 ren de shi hou
+		if (betPeople==0) {
+			myAction="check";
+		}
+		//System.out.println("myAction is : " +myAction);
+		
+		return myAction;
+	
+	}
+	private String sevenCdAction(int betPeople, double myCardsWeight,
+			int iminJetton, int hasBet, int sUM) {
+			//System.out.println("cardLength==7" +betPeople + "mycardweight: "+ myCardsWeight);
+	     String myAction=null;
+			//call
+			if (betPeople>=4) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<ONE_PAIR_SSH) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (ONE_PAIR_SSH<=myCardsWeight&&myCardsWeight<TWO_PAIR_SSH) {
+
+					if (iminJetton<=100) {
+						if (hasBet<=300) {
+							myAction="fold";
+						}else if (300<hasBet&&hasBet<=500) {
+							myAction="fold";
+						}else if (200<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<THREE_SSH&&myCardsWeight>=TWO_PAIR_SSH) {
+					if (iminJetton<=300) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (300<iminJetton&&iminJetton<=1000)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<STRAIGH_SSH&&myCardsWeight>=THREE_SSH) {
+					if (iminJetton<300) {
+						myAction="call";
+					}else if (300<=iminJetton&&iminJetton<=1000) {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}		
+				if (myCardsWeight<FLUSH_SSH&&myCardsWeight>=STRAIGH_SSH) {
+					if (iminJetton<500) {
+						myAction="call";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight<FULL_HOUSE_SSH&&myCardsWeight>=FLUSH_SSH) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=FULL_HOUSE_SSH) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>12000) {
+					if (myCardsWeight<=TWO_PAIR_SSH) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>TWO_PAIR_SSH&&myCardsWeight<=FLUSH_SSH) {
+						if (iminJetton>=1000) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>FLUSH_SSH) {
+						if (iminJetton<=500) {
+							myAction="all_in";
+						}else {
+							myAction="all_in";
+						}
+				}
+				}
+			}
+			//hai sheng 3ren
+			else if (betPeople==3) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<ONE_PAIR_SSH) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (ONE_PAIR_SSH<=myCardsWeight&&myCardsWeight<TWO_PAIR_SSH) {
+
+					if (iminJetton<=100) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<hasBet&&hasBet<=500) {
+							myAction="call";
+						}else if (200<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<THREE_SSH-10&&myCardsWeight>=TWO_PAIR_SSH) {
+					if (iminJetton<=200) {
+						if (hasBet<=200) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (200<iminJetton&&iminJetton<=400)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<THREE_SSH&&myCardsWeight>=THREE_SSH-10) {
+					if (iminJetton<=300) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (300<iminJetton&&iminJetton<=700)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<STRAIGH_SSH&&myCardsWeight>=THREE_SSH) {
+					if (iminJetton<300) {
+						myAction="call";
+					}else if (300<=iminJetton&&iminJetton<=1000) {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}		
+				if (myCardsWeight<FLUSH_SSH&&myCardsWeight>=STRAIGH_SSH) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight<FULL_HOUSE_SSH&&myCardsWeight>=FLUSH_SSH) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=FULL_HOUSE_SSH) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>18000) {
+					if (myCardsWeight<=TWO_PAIR_SSH) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>TWO_PAIR_SSH&&myCardsWeight<=THREE_SSH) {
+						if (iminJetton>=400) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>THREE_SSH&&myCardsWeight<=FLUSH_SSH) {
+						if (iminJetton>=200) {
+							myAction="call";
+						}else {
+							myAction="raise 1";
+						}
+						
+						
+					}
+					if (myCardsWeight>FLUSH_SSH) {
+						if (iminJetton<=500) {
+							myAction="all_in";
+						}else {
+							myAction="all_in";
+						}
+				}
+				}
+			}else if (betPeople==2) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<ONE_PAIR_SSH) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (ONE_PAIR_SSH<=myCardsWeight&&myCardsWeight<TWO_PAIR_SSH) {
+
+					if (iminJetton<=200) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (200<hasBet&&hasBet<=700) {
+							myAction="call";
+						}else if (700<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<THREE_SSH&&myCardsWeight>=TWO_PAIR_SSH) {
+					if (iminJetton<=300) {
+						if (hasBet<=300) {
+							myAction="raise 1";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (300<iminJetton&&iminJetton<=900)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<STRAIGH_SSH&&myCardsWeight>=THREE_SSH) {
+					if (iminJetton<300) {
+						myAction="call";
+					}else if (300<=iminJetton&&iminJetton<=2000) {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}		
+				if (myCardsWeight<FLUSH_SSH&&myCardsWeight>=STRAIGH_SSH) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				if (myCardsWeight<FULL_HOUSE_SSH&&myCardsWeight>=FLUSH_SSH) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=FULL_HOUSE_SSH) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>22000) {
+					if (myCardsWeight<=TWO_PAIR_SSH) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>TWO_PAIR_SSH&&myCardsWeight<=THREE_SSH) {
+						if (iminJetton>=500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+
+						if (myCardsWeight>FLUSH_SSH&&myCardsWeight<=FLUSH_SSH) {
+							if (iminJetton>=200) {
+								myAction="call";
+							}else {
+								myAction="call";
+							}
+		
+						
+					}
+					if (myCardsWeight>FLUSH_SSH) {
+						if (iminJetton<=500) {
+							myAction="all_in";
+						}else {
+							myAction="all_in";
+						}
+				}
+				}
+			}else if (betPeople==1) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<ONE_PAIR_SSH) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (ONE_PAIR_SSH<=myCardsWeight&&myCardsWeight<TWO_PAIR_SSH) {
+
+					if (iminJetton<=400) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<hasBet&&hasBet<=700) {
+							myAction="call";
+						}else if (700<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<THREE_SSH&&myCardsWeight>=TWO_PAIR_SSH) {
+					if (iminJetton<=300) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<=hasBet) {
+							myAction="call";
+						}
+					}else if (300<iminJetton&&iminJetton<=900)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<STRAIGH_SSH&&myCardsWeight>=THREE_SSH) {
+					if (iminJetton<300) {
+						myAction="raise 1";
+					}else if (300<=iminJetton&&iminJetton<=1000) {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+					
+				}		
+				if (myCardsWeight<FLUSH_SSH&&myCardsWeight>=STRAIGH_SSH) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight<FULL_HOUSE_SSH&&myCardsWeight>=FLUSH_SSH) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=FULL_HOUSE_SSH) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>32000) {
+					if (myCardsWeight<=TWO_PAIR_SSH) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>TWO_PAIR_SSH&&myCardsWeight<=THREE_SSH) {
+						if (iminJetton>=400) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>THREE_SSH&&myCardsWeight<=FLUSH_SSH) {
+						if (iminJetton>=200) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>FLUSH_SSH) {
+						if (iminJetton<=500) {
+							myAction="all_in";
+						}else {
+							myAction="all_in";
+						}
+						
+				}
+				}
+				
+			}
+		
+			}
+			return myAction;
+		}
+
+		private String sixCdAction(int betPeople, double myCardsWeight, int iminJetton,
+			int hasBet, int sUM) {
+			//System.out.println("cardLength==6" +betPeople + "mycardweight: "+ myCardsWeight);
+			String myAction=null;
+			//call
+			if (betPeople>=4) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<SIX_SSH_5-3) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (SIX_SSH_5-3<=myCardsWeight&&myCardsWeight<SIX_SSH_4) {
+
+					if (iminJetton<=200) {
+						if (hasBet<=200) {
+							myAction="call";
+						}else if (200<hasBet&&hasBet<=400) {
+							myAction="call";
+						}else if (400<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<SIX_SSH_3&&myCardsWeight>=SIX_SSH_4) {
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="raise 1";
+						}else if (500<hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=800)  {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<SIX_SSH_2&&myCardsWeight>=SIX_SSH_3) {
+					if (iminJetton<300) {
+						myAction="raise 1";
+					}else if (300<=iminJetton&&iminJetton<=1000) {
+						myAction="raise 1";
+					}else {
+						myAction="raise 1";
+					}
+					
+				}		
+				if (myCardsWeight<SIX_SSH_1&&myCardsWeight>=SIX_SSH_2) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=SIX_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>15000) {
+					if (myCardsWeight<=SIX_SSH_4-3) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight-3>SIX_SSH_4&&myCardsWeight<=SIX_SSH_3) {
+						if (iminJetton>=300) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_3) {
+						if (iminJetton<=500) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+				}
+				}
+			}
+			//hai sheng 3ren
+			else if (betPeople==3) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<SIX_SSH_5-3) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (SIX_SSH_5-3<=myCardsWeight&&myCardsWeight<SIX_SSH_4) {
+
+					if (iminJetton<=100) {
+						if (hasBet<=200) {
+							myAction="call";
+						}else if (200<hasBet&&hasBet<=300) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<SIX_SSH_3&&myCardsWeight>=SIX_SSH_4) {
+					if (iminJetton<=300) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (300<iminJetton&&iminJetton<=500)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<SIX_SSH_2&&myCardsWeight>=SIX_SSH_3) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton&&iminJetton<=1000) {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+					
+				}		
+				if (myCardsWeight<SIX_SSH_1&&myCardsWeight>=SIX_SSH_2) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="raise 1";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=SIX_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>20000) {
+					if (myCardsWeight<=SIX_SSH_4-5) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>SIX_SSH_4-5&&myCardsWeight<=SIX_SSH_3) {
+						if (iminJetton>=400) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_3) {
+						if (iminJetton<=500) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+				}
+				}
+			}else if (betPeople==2) {
+
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<SIX_SSH_5-3) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (SIX_SSH_5-3<=myCardsWeight&&myCardsWeight<SIX_SSH_4) {
+
+					if (iminJetton<=100) {
+						if (hasBet<=100) {
+							myAction="call";
+						}else if (100<hasBet&&hasBet<=200) {
+							myAction="call";
+						}else if (200<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<SIX_SSH_3&&myCardsWeight>=SIX_SSH_4) {
+					if (iminJetton<=400) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<=hasBet) {
+							myAction="call";
+						}
+					}else if (400<iminJetton&&iminJetton<=700)  {
+						myAction="fold";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<SIX_SSH_2&&myCardsWeight>=SIX_SSH_3) {
+					if (iminJetton<300) {
+						myAction="raise 1";
+					}else if (300<=iminJetton&&iminJetton<=900) {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+					
+				}		
+				if (myCardsWeight<SIX_SSH_1&&myCardsWeight>=SIX_SSH_2) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=SIX_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>22000) {
+					if (myCardsWeight<=SIX_SSH_4-3) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>SIX_SSH_4-3&&myCardsWeight<=SIX_SSH_3) {
+						if (iminJetton>=300) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_3&&myCardsWeight<=SIX_SSH_2) {
+						if (iminJetton>=1000) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_2) {
+						if (iminJetton<=500) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+				}
+				}
+			
+			}else if (betPeople==1) {
+
+
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<SIX_SSH_5-3) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (SIX_SSH_5-3<=myCardsWeight&&myCardsWeight<SIX_SSH_4) {
+
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<hasBet&&hasBet<=1000) {
+							myAction="call";
+						}else if (1000<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<SIX_SSH_3&&myCardsWeight>=SIX_SSH_4) {
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="raise 1";
+						}else if (500<=hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=2000)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<SIX_SSH_2&&myCardsWeight>=SIX_SSH_3) {
+					if (iminJetton<300) {
+						myAction="call";
+					}else if (300<=iminJetton&&iminJetton<=1200) {
+						myAction="raise 1";
+					}else {
+						myAction="raise 1";
+					}
+					
+				}		
+				if (myCardsWeight<SIX_SSH_1&&myCardsWeight>=SIX_SSH_2) {
+					if (iminJetton<500) {
+						myAction="all_in";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				
+				if (myCardsWeight>=SIX_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (sUM>30000) {
+					if (myCardsWeight<=SIX_SSH_4-3) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>SIX_SSH_4-3&&myCardsWeight<=SIX_SSH_3) {
+						if (iminJetton>=500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_3&&myCardsWeight<=SIX_SSH_2) {
+						if (iminJetton>=400) {
+							myAction="raise 1";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>SIX_SSH_2) {
+						if (iminJetton<=500) {
+							myAction="all_in";
+						}else {
+							myAction="all_in";
+						}
+				}
+				}
+			
+			
+			}
+			return myAction;
+		}
+
+		private String fiveCdAction(int betPeople,double myCardsWeight,int iminJetton,int hasBet,int SUM) {
+			//System.out.println("cardLength==5 people" +betPeople + "mycardweight: "+ myCardsWeight+"iminjetton"+ iminJetton + "hasbet" + hasBet);	
+			String myAction=null;
+			//call
+			if (betPeople>=4) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<FIVE_SSH_6-2) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (FIVE_SSH_6-2<=myCardsWeight&&myCardsWeight<FIVE_SSH_5) {
+
+					if (iminJetton<=300) {
+						if (hasBet<=300) {
+							myAction="call";
+						}else if (300<hasBet&&hasBet<=500) {
+							myAction="call";
+						}else if (500<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<FIVE_SSH_4&&myCardsWeight>=FIVE_SSH_5) {
+					if (iminJetton<=500) {
+						if (hasBet<=400) {
+							myAction="call";
+						}else if (400<hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=1000)  {
+						myAction="fold";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<FIVE_SSH_3&&myCardsWeight>=FIVE_SSH_4) {
+					if (iminJetton<400) {
+						myAction="raise 1";
+					}else if (400<=iminJetton&&iminJetton<=1000) {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}		
+				if (myCardsWeight<FIVE_SSH_2&&myCardsWeight>=FIVE_SSH_3) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight<FIVE_SSH_1&&myCardsWeight>=FIVE_SSH_2) {
+					if (iminJetton<800) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight>=FIVE_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (SUM>15000) {
+					if (myCardsWeight<=FIVE_SSH_5-2) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>FIVE_SSH_5-2&&myCardsWeight<=FIVE_SSH_4) {
+						if (iminJetton>=500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>FIVE_SSH_4) {
+						if (iminJetton<=500) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+				}
+				}
+			}
+			//hai sheng 3ren
+			else if (betPeople==3) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<FIVE_SSH_6-2) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (FIVE_SSH_6-2<=myCardsWeight&&myCardsWeight<FIVE_SSH_5) {
+
+					if (iminJetton<=200) {
+						if (hasBet<=100) {
+							myAction="call";
+						}else if (100<hasBet&&hasBet<=200) {
+							myAction="call";
+						}else if (200<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<FIVE_SSH_4&&myCardsWeight>=FIVE_SSH_5) {
+					if (iminJetton<=500) {
+						if (hasBet<=100) {
+							myAction="call";
+						}else if (100<=hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=700)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<FIVE_SSH_3&&myCardsWeight>=FIVE_SSH_4) {
+					if (iminJetton<200) {
+						myAction="raise 1";
+					}else if (200<=iminJetton&&iminJetton<=1500) {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+					
+				}		
+				if (myCardsWeight<FIVE_SSH_2&&myCardsWeight>=FIVE_SSH_3) {
+					if (iminJetton<=400) {
+						myAction="raise 1";
+					}else if (400<iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight<FIVE_SSH_1&&myCardsWeight>=FIVE_SSH_2) {
+					if (iminJetton<800) {
+						myAction="raise 1";
+					}else if (800<=iminJetton) {
+						myAction="call";
+					}
+					
+				}	
+				if (myCardsWeight>=FIVE_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (SUM>20000) {
+					if (myCardsWeight<=FIVE_SSH_5-0.5) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>FIVE_SSH_5-0.5&&myCardsWeight<=FIVE_SSH_4) {
+						if (iminJetton>=200) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>FIVE_SSH_4) {
+						if (iminJetton<=500) {
+							myAction="call";
+						}else {
+							myAction="call";
+						}
+				}
+				}
+			//hai sheng 3ren
+			}else if (betPeople==2) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<FIVE_SSH_6-2) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (FIVE_SSH_6-2<=myCardsWeight&&myCardsWeight<FIVE_SSH_5) {
+
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<hasBet&&hasBet<=700) {
+							myAction="call";
+						}else if (700<=hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<FIVE_SSH_4&&myCardsWeight>=FIVE_SSH_5) {
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=1000)  {
+						myAction="call";
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight<FIVE_SSH_3&&myCardsWeight>=FIVE_SSH_4) {
+					if (iminJetton<200) {
+						myAction="raise 1";
+					}else if (200<=iminJetton) {
+						myAction="raise 3";
+					}
+					
+				}		
+				if (myCardsWeight<FIVE_SSH_2&&myCardsWeight>=FIVE_SSH_3) {
+					if (iminJetton<=400) {
+						myAction="all_in";
+					}else if (400<iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				if (myCardsWeight<FIVE_SSH_1&&myCardsWeight>=FIVE_SSH_2) {
+					if (iminJetton<800) {
+						myAction="all_in";
+					}else if (800<=iminJetton) {
+						myAction="all_in";
+					}
+					
+				}	
+				if (myCardsWeight>=FIVE_SSH_1) {					
+						myAction="all_in";
+										
+				}		
+				
+				
+				//qianduo  xianzhi
+				if (SUM>22000) {
+					if (myCardsWeight<=FIVE_SSH_5-2) {						
+							myAction="fold";																		
+					}
+				
+					if (myCardsWeight>FIVE_SSH_5-2&&myCardsWeight<=FIVE_SSH_4) {
+						if (iminJetton>=200) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+						
+						
+					}
+					if (myCardsWeight>FIVE_SSH_4) {
+						if (iminJetton<=500) {
+							myAction="raise 1";
+						}else {
+							myAction="call";
+						}
+				}
+			//hai sheng 3ren
+			}
+		
+		}else if (betPeople==1) {
+
+			//xiao    tou>200   hasjetton  100
+			if (myCardsWeight<FIVE_SSH_6-2) {
+				
+					myAction="fold";
+			
+			}
+			
+		   
+			//zhong1   tou<=300    hasjetton 300
+			if (FIVE_SSH_6-2<=myCardsWeight&&myCardsWeight<FIVE_SSH_5) {
+
+				if (iminJetton<=200) {
+					if (hasBet<=100) {
+						myAction="call";
+					}else if (100<hasBet&&hasBet<=200) {
+						myAction="call";
+					}else if (200<=hasBet) {
+						myAction="fold";
+					}
+				}else {						
+						myAction="fold";						
+				}
+				
+			
+			}
+			//zhong2  tou<=400    hasjetton 400
+			if (myCardsWeight<FIVE_SSH_4&&myCardsWeight>=FIVE_SSH_5) {
+				if (iminJetton<=500) {
+					if (hasBet<=500) {
+						myAction="call";
+					}else if (500<hasBet) {
+						myAction="call";
+					}
+				}else if (500<iminJetton&&iminJetton<=1000)  {
+					myAction="raise 1";
+				}else {
+					myAction="fold";
+				}
+				
+			}
+			//da   tou<=500          hasjetton  200 500
+			if (myCardsWeight<FIVE_SSH_3&&myCardsWeight>=FIVE_SSH_4) {
+				if (iminJetton<200) {
+					myAction="raise 1";
+				}else if (200<=iminJetton&&iminJetton<=700) {
+					myAction="raise 1";
+				}else {
+					myAction="raise 1";
+				}
+				
+			}		
+			if (myCardsWeight<FIVE_SSH_2&&myCardsWeight>=FIVE_SSH_3) {
+				if (iminJetton<=700) {
+					myAction="all_in";
+				}else if (700<iminJetton) {
+					myAction="all_in";
+				}
+				
+			}	
+			if (myCardsWeight<FIVE_SSH_1&&myCardsWeight>=FIVE_SSH_2) {
+				if (iminJetton<800) {
+					myAction="all_in";
+				}else if (800<=iminJetton) {
+					myAction="all_in";
+				}
+				
+			}	
+			if (myCardsWeight>=FIVE_SSH_1) {					
+					myAction="all_in";
+									
+			}		
+			
+			
+			//qianduo  xianzhi
+			if (SUM>30000) {
+				if (myCardsWeight<=FIVE_SSH_5-2) {						
+						myAction="fold";																		
+				}
+			
+				if (myCardsWeight>FIVE_SSH_5&&myCardsWeight<=FIVE_SSH_4) {
+					if (iminJetton>=200) {
+						myAction="fold";
+					}else {
+						myAction="call";
+					}
+					
+					
+				}
+				if (myCardsWeight>FIVE_SSH_4) {
+					if (iminJetton<=500) {
+						myAction="call";
+					}else {
+						myAction="call";
+					}
+			}
+		//hai sheng 3ren
+		}
+
+
+		}
+			return myAction;
+			
+		}
+
+		private String twoCdAction(int betPeople, double myCardsWeight,int iminJetton,int hasBet,int SUM) {
+		// TODO Auto-generated method stub
+	    String myAction=null;
+			//System.out.println("cardLength==2" +betPeople);
+
+			//call
+			if (betPeople>=4) {
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<TWO_SSH_3-0.5) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (TWO_SSH_3-0.5<=myCardsWeight&&myCardsWeight<=TWO_SSH_2) {
+
+					if (iminJetton<=500) {
+						if (hasBet<=100) {
+							myAction="call";
+						}else if (100<hasBet&&hasBet<=400) {
+							myAction="call";
+						}else if (400<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<TWO_SSH_1&&myCardsWeight>=TWO_SSH_2) {
+					if (iminJetton<=800) {
+						if (hasBet<=100) {
+							myAction="raise 1";
+						}else if (100<=hasBet) {
+							myAction="call";
+						}
+					}else if (800<iminJetton&&iminJetton<=1000)  {
+						if (hasBet<400) {
+							myAction="call";
+						}else if (400<=hasBet&&hasBet<=800) {
+							myAction="call";
+						}
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight>=TWO_SSH_1) {
+					if (iminJetton<200) {
+						myAction="raise 1";
+					}else if (200<=iminJetton) {
+						myAction="call";
+					}
+					
+				}				
+				
+				//qianduo  xianzhi
+				if (SUM>=20000) {
+					
+					if (myCardsWeight<=TWO_SSH_3-0.5) {					
+							myAction="fold";						
+					}
+					if (myCardsWeight<=TWO_SSH_2&&myCardsWeight>TWO_SSH_3-0.5) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+						
+						
+					
+					if (myCardsWeight>TWO_SSH_2) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+				}
+			//hai sheng 3ren
+			}else if (betPeople==3) {
+
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<TWO_SSH_3-0.5) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (TWO_SSH_3-0.5<=myCardsWeight&&myCardsWeight<=TWO_SSH_2) {
+
+					if (iminJetton<=300) {
+						if (hasBet<=400) {
+							myAction="call";
+						}else if (400<hasBet&&hasBet<=800) {
+							myAction="call";
+						}else if (800<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<=TWO_SSH_1&&myCardsWeight>=TWO_SSH_2) {
+					if (iminJetton<=500) {
+						if (hasBet<=500) {
+							myAction="raise 1";
+						}else if (500<hasBet) {
+							myAction="call";
+						}
+					}else if (400<iminJetton&&iminJetton<=1000)  {
+						if (hasBet<400) {
+							myAction="call";
+						}else if (400<=hasBet&&hasBet<=800) {
+							myAction="call";
+						}
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight>TWO_SSH_1) {
+					if (iminJetton<200) {
+						myAction="raise 1";
+					}else if (200<=iminJetton) {
+						myAction="call";
+					}
+					
+				}				
+				
+				//qianduo  xianzhi
+				if (SUM>=18000) {
+					
+					if (myCardsWeight<=TWO_SSH_3-0.5) {					
+							myAction="fold";						
+					}
+					if (myCardsWeight<=TWO_SSH_2&&myCardsWeight>TWO_SSH_3-0.5) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+						
+						
+					
+					if (myCardsWeight>TWO_SSH_2) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+				}
+				
+			//2 ren
+			}else if (betPeople==2) {
+
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<TWO_SSH_3-0.5) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (TWO_SSH_3-0.5<=myCardsWeight&&myCardsWeight<TWO_SSH_2) {
+
+					if (iminJetton<=300) {
+						if (hasBet<=400) {
+							myAction="call";
+						}else if (400<hasBet&&hasBet<=600) {
+							myAction="call";
+						}else if (600<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<TWO_SSH_1&&myCardsWeight>=TWO_SSH_2) {
+					if (iminJetton<=400) {
+						if (hasBet<=500) {
+							myAction="raise 1";
+						}else if (500<hasBet) {
+							myAction="call";
+						}
+					}else if (400<iminJetton&&iminJetton<=1000)  {
+						if (hasBet<400) {
+							myAction="call";
+						}else if (400<=hasBet&&hasBet<=800) {
+							myAction="call";
+						}
+					}else {
+						myAction="fold";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight>=TWO_SSH_1) {
+					if (iminJetton<500) {
+						myAction="raise 1";
+					}else if (500<=iminJetton) {
+						myAction="call";
+					}
+					
+				}				
+				
+				//qianduo  xianzhi
+				if (SUM>20000) {
+					
+					if (myCardsWeight<=TWO_SSH_3-0.5) {					
+							myAction="fold";						
+					}
+					if (myCardsWeight<=TWO_SSH_2&&myCardsWeight>TWO_SSH_3) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+						
+						
+					
+					if (myCardsWeight>TWO_SSH_2) {
+						if (iminJetton>500) {
+							myAction="fold";
+						}else {
+							myAction="call";
+						}
+					}
+				}
+				
+			
+			}
+			
+			if (betPeople==1) {
+
+
+				//xiao    tou>200   hasjetton  100
+				if (myCardsWeight<TWO_SSH_3-0.5) {
+					
+						myAction="fold";
+				
+				}
+				
+			   
+				//zhong1   tou<=300    hasjetton 300
+				if (TWO_SSH_3-0.5<=myCardsWeight&&myCardsWeight<TWO_SSH_2) {
+
+					if (iminJetton<=300) {
+						if (hasBet<=500) {
+							myAction="call";
+						}else if (500<hasBet&&hasBet<=800) {
+							myAction="call";
+						}else if (800<hasBet) {
+							myAction="fold";
+						}
+					}else {						
+							myAction="fold";						
+					}
+					
+				
+				}
+				//zhong2  tou<=400    hasjetton 400
+				if (myCardsWeight<TWO_SSH_1&&myCardsWeight>=TWO_SSH_2) {
+					if (iminJetton<=500) {
+						if (hasBet<=400) {
+							myAction="raise 1";
+						}else if (400<hasBet) {
+							myAction="call";
+						}
+					}else if (500<iminJetton&&iminJetton<=1000)  {
+						if (hasBet<400) {
+							myAction="call";
+						}else if (400<=hasBet&&hasBet<=800) {
+							myAction="call";
+						}
+					}else {
+						myAction="call";
+					}
+					
+				}
+				//da   tou<=500          hasjetton  200 500
+				if (myCardsWeight>=TWO_SSH_1) {
+					if (iminJetton<200) {
+						myAction="raise 1";
+					}else if (200<=iminJetton) {
+						myAction="call";
+					}
+					
+				}						
+			
+			}
+		
+		return myAction;
+	}
+
+		private int betpeopleNum(String[] playorder ) {
+			// TODO Auto-generated method stub
+			playorder=this.playorder;
+			int raiseNum=0,checkNum=0,callNum=0,all_inNum=0,sbblind=0;
+			String actionplayId;
+			int playorderLgth=playorder.length;
+			for (int i = 0; i < playorderLgth; i++) {
+				if (playorder[i]!=null) {
+					//System.out.println("playorder!!" +i+ playorder[i]);
+					actionplayId = playorder[i];
+					if (!actionplayId.equals(this.playId)) {
+						PlayInfo play = hashViews.get(actionplayId);					
+						if (play.getAction().equals("check")) {
+							checkNum += 1;
+						} else if (play.getAction().equals("call")) {
+							callNum += 1;
+						} else if (play.getAction().equals("raise")) {
+							raiseNum += 1;
+						} else if (play.getAction().equals("all_in")) {
+							all_inNum += 1;
+						} else if (play.getAction().equals("fold")) {
+						}else if(play.getAction().equals("blind")){
+							sbblind+=1;
+						}
+					}
+					//System.out.println("check" +checkNum+"call"+callNum+"raise"+raiseNum+"all_in"+all_inNum);
+				}
+			}
+			 int betPeople=raiseNum+checkNum+callNum+all_inNum+sbblind;
+			return betPeople;
+			
+			
+		}
+
+
+
+
+	private int transCardValueToInter(Card cardA) {
+		// TODO Auto-generated method stub
+		String temp=cardA.getCardSize();;
+		int size = 0;
+		if (temp.equals("2") ) {
+			size=2;
+		}else if (temp.equals("3")) {
+			size=3;
+		}else if (temp.equals( "4")) {
+			size=4;
+		}else if (temp.equals( "5")) {
+			size=5;
+		}else if (temp.equals( "6")) {
+			size=6;
+		}else if (temp.equals( "7")) {
+			size=7;
+		}else if (temp.equals( "8")) {
+			size=8;
+		}else if (temp.equals( "9")){
+			size=9;
+		}else if (temp.equals( "10")) {
+			size=10;
+		}else if (temp.equals( "J")) {
+			size=11;
+		}else if (temp.equals("Q")){
+			size=12;
+		}else if (temp.equals( "K")){
+			size=13;
+		}else if (temp.equals  ("A")) {
+			size=14;
+		}else {
+			System.err.println("error card value");
+		}
+		return size;
+	}
+
+	private int transCardColorToInter(Card cardA) {
+		// TODO Auto-generated method stub
+		String temp=cardA.getCardType();
+		int color = 0;
+		if (temp.equals( "SPADES")) {
+			color=1;
+		} else if (temp.equals( "HEARTS")) {
+			color=2;
+		} else if (temp.equals ("CLUBS")) {
+			color=3;
+		} else if (temp.equals("DIAMONDS")) {
+			color=4;
+		} else {
+			System.err.println("error card type");
+		}
+		return color;
+	}
+
+	private static void sortValuesAndColors(int[] values, int[] colors){
+        for (int i=0;i<values.length-1 ;i++ ){
+                int max=i;
+                for (int j=i+1;j<values.length ;j++ ){
+                        if (values[max]<values[j]){
+                                max=j;
+                        }
+                }
+                if (max!=i){
+                int temp1=values[i];
+                values[i]=values[max];
+                values[max]=temp1;      
+                
+                int temp2=colors[i];
+                colors[i]=colors[max];
+                colors[max]=temp2;
+                }
+        }
+	}
+	private boolean timeOunt(float time) {
+		// TODO Auto-generated method stub
+		boolean timeF=true;
+		long now =System.currentTimeMillis();
+		if (now-time>500) {
+			timeF= false;
+		}
+		
+		return  timeF;
+	}
+
+
+	
+	private void registerMsg(String pid, String pname) {
+		// TODO Auto-generated method stub
+		// reg: pid pname eol
+
+		String regmsg = "reg: " + pid + " " + "hpnl" + "\n";		
+		sendMsg(regmsg);
+		
+	}
+    
+	
+   
+	public void sendMsg(String command) {
+
+		// byte[] bytes = HexString2Bytes(command);
+		byte[] srtbyte = command.getBytes();
+
+		
+		try {
+			outputStream = s.getOutputStream();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		try {
+			outputStream.write(srtbyte);
+			outputStream.flush();
+		} catch (IOException e) {
+		}
+
+	}
+
+	class PlayInfo {
+		Boolean isbigBlind = false;
+		Boolean button = false;
+		int order;
+		String pid;
+		// fama
+		int jetton=0;
+		// shengyujinbi
+		int money=0;
+		// lei ji tou zhu jin e
+		int bet=0;
+		String action;
+
+		public PlayInfo() {
+
+		}
+
+		// pid jetton money bet blind | check | call | raise | all_in | fold eol
+		Boolean issmallBlind = false;
+
+		public Boolean getIssmallBlind() {
+			return issmallBlind;
+		}
+
+		public void setIssmallBlind(Boolean issmallBlind) {
+			this.issmallBlind = issmallBlind;
+		}
+
+		public Boolean getIsbigBlind() {
+			return isbigBlind;
+		}
+
+		public void setIsbigBlind(Boolean isbigBlind) {
+			this.isbigBlind = isbigBlind;
+		}
+
+		public Boolean getButton() {
+			return button;
+		}
+
+		public void setButton(Boolean button) {
+			this.button = button;
+		}
+
+		public int getOrder() {
+			return order;
+		}
+
+		public void setOrder(int order) {
+			this.order = order;
+		}
+
+		public String getPid() {
+			return pid;
+		}
+
+		public void setPid(String pid) {
+			this.pid = pid;
+		}
+
+		public int getJetton() {
+			return jetton;
+		}
+
+		public void setJetton(int jetton) {
+			this.jetton = jetton;
+		}
+
+		public int getMoney() {
+			return money;
+		}
+
+		public void setMoney(int money) {
+			this.money = money;
+		}
+
+		public int getBet() {
+			return bet;
+		}
+
+		public void setBet(int bet) {
+			this.bet = bet;
+		}
+
+		public String getAction() {
+			return action;
+		}
+
+		public void setAction(String action) {
+			this.action = action;
+		}
+
+	}
+	private class Card{
+		String cardType;
+		String    cardSize;
+
+		public String getCardType() {
+			return cardType;
+		}
+		public void setCardType(String cardType) {
+			this.cardType = cardType;
+		}
+		public String getCardSize() {
+			return cardSize;
+		}
+		public void setCardSize(String holdString) {
+			this.cardSize = holdString;
+		}
+	}
+	
+	 class ArrayLink{
+		//7zhang pan
+		
+		//
+		PlayInfo mPlayInfo;
+		//
+	}
+
+
+	
+
+	
+
+}
